@@ -1,0 +1,8 @@
+*.json
+*.pkl
+*.save
+*.jpg
+*.xml
+monitorGPU.py
+__pycache__/
+*.py~
