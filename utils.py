@@ -11,9 +11,15 @@ from torchvision import transforms
 import pickle
 import time
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 
 import argparse
+
+
+def writeLossToFile(loss, path):
+  with open(path, 'a+') as file:
+    file.write(str(loss) + '\n')
 
 def createHypothesis(listOfWords):
     hyp = listOfWords[0]
@@ -99,7 +105,7 @@ def adjust_learning_rate(optimizer, shrink_factor):
 
 
 def save_checkpoint( epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer, decoder_optimizer,
-                    bleu4, is_best):
+                    bleu4, is_best, metrics_dict):
     """
     Saves model checkpoint.
     :param data_name: base name of processed dataset
@@ -118,7 +124,9 @@ def save_checkpoint( epoch, epochs_since_improvement, encoder, decoder, encoder_
     print("now =", now)
 
     # dd/mm/YY H:M:S
-    dt_string = now.strftime("_%d_%m_%Y__%H_%M_%S_")
+    dt_string = now.strftime("%d_%m_%Y__%H_%M_%S_")
+
+    day_string = now.strftime("%d_%m_%Y")
     print("date and time =", dt_string)
     state = {'epoch': epoch,
              'epochs_since_improvement': epochs_since_improvement,
@@ -126,9 +134,29 @@ def save_checkpoint( epoch, epochs_since_improvement, encoder, decoder, encoder_
              'encoder': encoder,
              'decoder': decoder,
              'encoder_optimizer': encoder_optimizer,
-             'decoder_optimizer': decoder_optimizer}
+             'decoder_optimizer': decoder_optimizer,
+             'metrics_dict': metrics_dict}
+
     filename = 'checkpoint_' + dt_string + '.pth.tar'
     torch.save(state, filename)
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
+        filename = 'checkpoint_' + day_string + '.pth.tar'
         torch.save(state, 'BEST_' + filename)
+        
+        
+        
+def plotLosses(trainLossesPath, valLossesPath):
+  trainLosses = []
+  valLosses = []
+  with open(trainLossesPath) as file:
+    for line in file:
+      trainLosses.append(float(line))
+  with open(valLossesPath) as file:
+    for line in file:
+      valLosses.append(float(line))
+  plt.plot(np.arange(len(trainLosses)), trainLosses)
+  plt.plot(np.arange(len(valLosses)), valLosses)
+  plt.legend(['train', 'val'], loc='upper right')
+  print(trainLosses)
+  print(valLosses)
