@@ -109,6 +109,8 @@ def validate(idx2word, val_loader, encoder, decoder, criterion):
             # Add doubly stochastic attention regularization
             loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
 
+            
+
             # Keep track of metrics
             losses.update(loss.item(), sum(decode_lengths))
             #top5 = accuracy(scores, targets, 5)
@@ -122,6 +124,8 @@ def validate(idx2word, val_loader, encoder, decoder, criterion):
                       'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(i, len(val_loader), batch_time=batch_time,
                                                                                 loss=losses))
+                
+            
 
             # Store references (true captions), and hypothesis (prediction) for each image
             # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
@@ -213,6 +217,10 @@ def validate(idx2word, val_loader, encoder, decoder, criterion):
         #     '\n * LOSS - {loss.avg:.3f}, BLEU-4 - {bleu}\n'.format(
         #         loss=losses,
         #         bleu=bleu4))
+    now = datetime.now()
+    day_string = now.strftime("%d_%m_%Y")
+    path = 'valLosses_' + day_string
+    writeLossToFile(losses.avg, path)
 
     return references, hypotheses
 
@@ -256,13 +264,26 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         targets = caps_sorted[:, 1:]
 
+        # print("Caps sorted: ", caps_sorted.shape)
+        # print("Decode Lengths: ", decode_lengths)
+        # print("Scores: ", scores.shape)
+        # print("Targets: ", targets.shape)
+        # print("Decode Lengths: ", decode_lengths)
+
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this
         scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
         targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
+        # print("After")
+        # print("Scores: ", scores.data.shape)
+        # print("Targets: ", targets.data.shape)
+
         # Calculate loss
         loss = criterion(scores.data, targets.data)
+
+        # print("LOSS: " ,loss)
+        #break
 
         # Add doubly stochastic attention regularization
         loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
@@ -274,10 +295,10 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         loss.backward()
 
         # Clip gradients
-        if grad_clip is not None:
-            clip_gradient(decoder_optimizer, grad_clip)
-            if encoder_optimizer is not None:
-                clip_gradient(encoder_optimizer, grad_clip)
+        # if grad_clip is not None:
+        #     clip_gradient(decoder_optimizer, grad_clip)
+        #     if encoder_optimizer is not None:
+        #         clip_gradient(encoder_optimizer, grad_clip)
 
         # Update weights
         decoder_optimizer.step()
@@ -292,6 +313,8 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
 
         start = time.time()
 
+        
+
         # Print status
         if i % 5 == 0:
             print('Epoch: [{0}][{1}/{2}]\t'
@@ -300,8 +323,10 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(train_loader),
                                                                           batch_time=batch_time,
                                                                           data_time=data_time, loss=losses))
-
-
+    now = datetime.now()
+    day_string = now.strftime("%d_%m_%Y")
+    path = 'trainLosses_' + day_string
+    writeLossToFile(losses.avg, path)
 
 def main(checkpoint=None):
 
