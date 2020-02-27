@@ -445,7 +445,7 @@ def main(checkpoint=None):
 
         # Save checkpoint
         save_checkpoint( epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,
-                        decoder_optimizer, recent_bleu4, is_best)
+                        decoder_optimizer, recent_bleu4, is_best, metrics_dict)
 
 
 
