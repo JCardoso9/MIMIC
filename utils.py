@@ -16,21 +16,20 @@ import matplotlib.pyplot as plt
 
 import argparse
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def writeLossToFile(loss, path):
+  """
+    Write loss of the curren batch to a log file
+    :param loss: Average loss of the current batch.
+    :param path: path to the log file
+  """
   with open(path, 'a+') as file:
     file.write(str(loss) + '\n')
 
-def createHypothesis(listOfWords):
-    hyp = listOfWords[0]
-    for word in listOfWords[1:]:
-        if word == '.':
-            hyp += word
-        else:
-            hyp += ' ' + word
-    return hyp
 
-
+    
 def clip_gradient(optimizer, grad_clip):
     """
     Clips gradients computed during backpropagation to avoid explosion of gradients.
@@ -65,6 +64,11 @@ class AverageMeter(object):
 
 
 def getFilesInDirectory(path):
+  """
+    Get the path of all files in this directory, recursively
+    the embeddings dimension
+    :param path: Root path. 
+  """
     files = []
     for r, d, f in os.walk(path):
         for file in f:
@@ -74,6 +78,11 @@ def getFilesInDirectory(path):
 
 
 def loadEmbeddingsFromDisk(embeddingsPath):
+  """
+    Load the dictionary with word -> embeddings correspondence. Return also vocab size, embeddings matrix and
+    the embeddings dimension
+    :param embeddingsPath: Path to pkl object with the dictionary. 
+  """
   word_map = pickle.load(open(embeddingsPath, "rb" ))
   vocab_size = len(list(word_map.keys()))
   embed_dim = len(list(word_map.values())[1])
@@ -81,12 +90,22 @@ def loadEmbeddingsFromDisk(embeddingsPath):
 
   return word_map, embeddings, vocab_size, embed_dim
 
+
 def decodeCaption(caption, idx2word):
-    decodedCaption = []
+  """
+    Transform captions comprised of word indexes into natural language captions
+    :param caption: caption comprised of list of indexes.
+    :param idx2word: dictionary with index -> word correspondence. 
+  """
+    decodedCaption = idx2word[str(caption[0])]
     
-    for index in caption[:-1]:
-        word = idx2word[index]
-        decodedCaption.append(word)
+    for index in caption[1:-1]:
+      word = idx2word[str(index)]
+      if word == '.':
+          decodedCaption += word
+      else:
+          decodedCaption += ' ' + word   
+        
     return decodedCaption
 
 
@@ -160,3 +179,43 @@ def plotLosses(trainLossesPath, valLossesPath):
   plt.legend(['train', 'val'], loc='upper right')
   print(trainLosses)
   print(valLosses)
+
+  
+def getEmbeddingsOfTargets(targets, idx2word, wordMap):
+  """
+    Creates tensor with the embeddings of the words present in the previously packed target reports
+    :param targets: packed_sequence tensor with indexes of words in target reports
+    :param idx2word: dictionary with index -> word correspondence.
+    :param wordMap: dictionary with word -> embedding correspondence
+    """
+  targetsList = targets.data.tolist()
+  word = idx2word[str(targetsList[0])]
+  
+  # create tensor with embedding of first word
+  targetEmbeddings = wordMap[word]
+  targetEmbeddings = torch.from_numpy(targetEmbeddings).unsqueeze_(0).to(device)
+  
+  # concatenate embeddings of all other words
+  for index in targetsList[1:]:
+    word = idx2word[str(index)]
+    embedding = wordMap[word]
+    embedding = torch.from_numpy(embedding).unsqueeze_(0).to(device)
+    targetEmbeddings = torch.cat((targetEmbeddings, embedding),0)
+  return targetEmbeddings
+
+
+# continuous output (tensor of embed_dim)
+def findClosestWord(continuousOutput, embeddings, idx2word):
+  """
+    Get nearest neighbour to the continuous output provided by the model
+    :param continuousOutput: continuous output of size embed_dim
+    :param embeddings: embeddings matrix.
+    :param idx2word: dictionary with index -> word correspondence.
+  """
+  continuousOutput = continuousOutput.view(1, continuousOutput.shape[0]).cpu().numpy()
+
+  similarity_matrix = cosine_similarity(embeddings, continuousOutput)
+  word_index = np.argmax(similarity_matrix)
+  
+  closestNeighbour = idx2word[str(word_index)]
+  return closestNeighbour
