@@ -212,10 +212,10 @@ def findClosestWord(continuousOutput, embeddings, idx2word):
     :param embeddings: embeddings matrix.
     :param idx2word: dictionary with index -> word correspondence.
   """
-  continuousOutput = continuousOutput.view(1, continuousOutput.shape[0]).cpu().numpy()
+  cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+  similarity_matrix = cos(continuousOutput.unsqueeze(0), embeddings)
 
-  similarity_matrix = cosine_similarity(embeddings, continuousOutput)
-  word_index = np.argmax(similarity_matrix)
+  word_index = torch.argmax(similarity_matrix)
   
-  closestNeighbour = idx2word[str(word_index)]
+  closestNeighbour = idx2word[str(word_index.item())]
   return closestNeighbour
