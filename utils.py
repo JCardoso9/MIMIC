@@ -69,12 +69,12 @@ def getFilesInDirectory(path):
     the embeddings dimension
     :param path: Root path. 
   """
-    files = []
-    for r, d, f in os.walk(path):
-        for file in f:
-            if '.jpg' in file:
-                files.append(os.path.join(r, file))
-    return files
+  files = []
+  for r, d, f in os.walk(path):
+      for file in f:
+          if '.jpg' in file:
+              files.append(os.path.join(r, file))
+  return files
 
 
 def loadEmbeddingsFromDisk(embeddingsPath):
@@ -97,16 +97,16 @@ def decodeCaption(caption, idx2word):
     :param caption: caption comprised of list of indexes.
     :param idx2word: dictionary with index -> word correspondence. 
   """
-    decodedCaption = idx2word[str(caption[0])]
-    
-    for index in caption[1:-1]:
-      word = idx2word[str(index)]
-      if word == '.':
-          decodedCaption += word
-      else:
-          decodedCaption += ' ' + word   
-        
-    return decodedCaption
+  decodedCaption = idx2word[str(caption[0])]
+  
+  for index in caption[1:-1]:
+    word = idx2word[str(index)]
+    if word == '.':
+        decodedCaption += word
+    else:
+        decodedCaption += ' ' + word   
+      
+  return decodedCaption
 
 
 def adjust_learning_rate(optimizer, shrink_factor):
@@ -219,3 +219,22 @@ def findClosestWord(continuousOutput, embeddings, idx2word):
   
   closestNeighbour = idx2word[str(word_index.item())]
   return closestNeighbour
+
+
+  # predEmbeddings (batch x length Longest caption x embed_dim)
+def generatePredictedCaptions(predEmbeddings, decode_lengths, embeddings, idx2word):
+  batch_size = predEmbeddings.shape[0]
+  captions = []
+  for captionNr in range(batch_size):
+    caption = findClosestWord(predEmbeddings[captionNr, 0, :].data, embeddings, idx2word) # First word of caption
+
+    for predictedWordEmbedding in predEmbeddings[captionNr,1:decode_lengths[captionNr], :]:
+      # print("New word")
+      word = findClosestWord(predictedWordEmbedding.data, embeddings, idx2word)
+      if word == '.':
+        caption += word
+      else:
+        caption += ' ' + word
+    captions.append(caption)
+    # print(captions)
+  return captions
