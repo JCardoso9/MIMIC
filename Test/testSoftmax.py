@@ -117,7 +117,7 @@ def test(idx2word, testLoader, encoder, decoder, criterion):
             if i % print_freq == 0:
                 print('Validation: [{0}/{1}]\t'
                       'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(i, len(val_loader), batch_time=batch_time,
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(i, len(testLoader), batch_time=batch_time,
                                                                                 loss=losses))
                 
 
@@ -180,10 +180,22 @@ def main(modelInfoPath):
   #Load embeddings 
   word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk('/home/jcardoso/MIMIC/embeddingsMIMIC.pkl')
 
+  attention_dim = 512  # dimension of attention linear layers
+  decoder_dim = 512  # dimension of decoder RNN
+
+  decoder = DecoderWithAttention(attention_dim=attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=decoder_dim,
+                                    vocab_size=vocab_size,
+                                    dropout=0.5)
+
+  decoder.load_pretrained_embeddings(embeddings)  
+  encoder = Encoder()
+
   # Load trained model
   modelInfo = torch.load(modelInfoPath)
-  decoder = modelInfo['decoder']
-  encoder = modelInfo['encoder']
+  decoder.load_state_dict(modelInfo['decoder'])
+  encoder.load_state_dict(modelInfo['encoder'])
 
   # Move to GPU, if available
   decoder = decoder.to(device)
@@ -211,7 +223,7 @@ def main(modelInfoPath):
 
   with open(modelInfoPath + "_TestResults.txt", "w+") as file:
     for metric in metrics_dict:
-      file.write(metric + ":" + metrics_dict[metric] + "\n")
+      file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
 
   
   

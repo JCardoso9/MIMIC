@@ -155,14 +155,7 @@ def validate(idx2word, val_loader, encoder, decoder, criterion):
             decodedTempRef = []
 
             for caption in temp_refs:
-              # print("Length ref: ", len(caption))
-              # print("REF: ", caption)
-              caption = [str(i) for i in caption]
-              decoded = decodeCaption(caption, idx2word)
-              # print("Length ref decoded: ", len(decoded))
-              # decodedTempRef.append(createHypothesis(decoded))
-              #print(decodedTempRef)
-              references[0].append(createHypothesis(decoded))
+              references[0].append(decodeCaption(caption, idx2word))
 
             # print("Caps sorted: ", caps_sorted.shape)
             # print("References:", len(references))
@@ -328,35 +321,35 @@ def main(checkpoint=None):
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
     # Initialize / load checkpoint
-    if checkpoint is None:
-        decoder = DecoderWithAttention(attention_dim=attention_dim,
-                                        embed_dim=embed_dim,
-                                        decoder_dim=decoder_dim,
-                                        vocab_size=vocab_size,
-                                        dropout=dropout)
+    
+    decoder = DecoderWithAttention(attention_dim=attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=decoder_dim,
+                                    vocab_size=vocab_size,
+                                    dropout=dropout)
 
-        decoder.load_pretrained_embeddings(embeddings)  # pretrained_embeddings should be of dimensions (len(word_map), emb_dim)
-        decoder.fine_tune_embeddings(True)
-        decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
-                                              lr=decoder_lr)
-        encoder = Encoder()
-        encoder.fine_tune(fine_tune_encoder)
-        encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
-                                              lr=encoder_lr) if fine_tune_encoder else None
+    decoder.load_pretrained_embeddings(embeddings)  # pretrained_embeddings should be of dimensions (len(word_map), emb_dim)
+    decoder.fine_tune_embeddings(True)
+    
+    encoder = Encoder()
+    encoder.fine_tune(fine_tune_encoder)
+        
+    decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
+                                          lr=decoder_lr)
+    encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
+                                          lr=encoder_lr) if fine_tune_encoder else None
 
-    else:
+    if checkpoint not None:
         checkpoint = torch.load(checkpoint)
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
         best_bleu4 = checkpoint['bleu-4']
-        decoder = checkpoint['decoder']
-        decoder_optimizer = checkpoint['decoder_optimizer']
-        encoder = checkpoint['encoder']
-        encoder_optimizer = checkpoint['encoder_optimizer']
-        if fine_tune_encoder is True and encoder_optimizer is None:
-            encoder.fine_tune(fine_tune_encoder)
-            encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
-                                                 lr=encoder_lr)
+
+        decoder.load_state_dict(checkpoint['decoder'])
+        decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
+        encoder.load_state_dict(checkpoint['encoder'])
+        encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
+
 
     # Move to GPU, if available
     decoder = decoder.to(device)
@@ -424,8 +417,8 @@ def main(checkpoint=None):
             epochs_since_improvement = 0
 
         # Save checkpoint
-        save_checkpoint( epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,
-                        decoder_optimizer, recent_bleu4, is_best, metrics_dict)
+        save_checkpoint( epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
+                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict)
 
 
 
