@@ -372,7 +372,7 @@ def main(checkpoint=None):
     encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
                                           lr=encoder_lr) if fine_tune_encoder else None
 
-    if checkpoint not None:
+    if checkpoint is not None:
         checkpoint = torch.load(checkpoint)
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
@@ -442,6 +442,8 @@ def main(checkpoint=None):
         is_best = recent_bleu4 > best_bleu4
 
         best_bleu4 = max(recent_bleu4, best_bleu4)
+
+        print("Metrics: ", metrics_dict)
 
         print("Best BLEU: ", best_bleu4)
         if not is_best:

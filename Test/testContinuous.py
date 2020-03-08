@@ -221,6 +221,8 @@ def main(modelInfoPath):
   
   metrics_dict = nlgeval.compute_metrics(references, hypotheses)
 
+  
+
   with open(modelInfoPath + "_TestResults.txt", "w+") as file:
     for metric in metrics_dict:
       file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
