@@ -1,4 +1,7 @@
-import argparse, json
+
+
+import sys
+sys.path.append('../')
 from utils import *
 from encoder import Encoder
 from Attention import *
@@ -8,7 +11,7 @@ from XRayDataset import *
 import torch
 import os
 import numpy as np
-
+import argparse, json
 from PIL import Image
 import re
 import torch.nn as nn

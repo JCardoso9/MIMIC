@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../')
+
 import argparse, json
 from utils import *
 from encoder import Encoder
