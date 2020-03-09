@@ -59,7 +59,7 @@ checkpoint = None  # path to checkpoint, None if none
 
 
 
-def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, idx2word):
+def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, idx2word, word_map):
     """
     Performs one epoch's training.
     :param train_loader: DataLoader for training data
@@ -432,7 +432,8 @@ def main(checkpoint=None):
               encoder_optimizer=encoder_optimizer,
               decoder_optimizer=decoder_optimizer,
               epoch=epoch,
-              idx2word=idx2word)
+              idx2word=idx2word,
+              word_map=word_map)
 
         # One epoch's validation
         references, hypotheses = validate(word_map,embeddings,idx2word, val_loader=valLoader,
