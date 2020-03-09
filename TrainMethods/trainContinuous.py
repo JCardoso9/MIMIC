@@ -2,6 +2,8 @@
 
 import sys
 sys.path.append('../')
+sys.path.append('../Models/')
+sys.path.append('../Dataset/')
 from utils import *
 from encoder import Encoder
 from Attention import *
@@ -353,6 +355,7 @@ def main(checkpoint=None):
         idx2word = json.load(fp)
 
 
+    emb_dim = 200
     attention_dim = 512  # dimension of attention linear layers
     decoder_dim = 512  # dimension of decoder RNN
     dropout = 0.5
@@ -428,7 +431,8 @@ def main(checkpoint=None):
               criterion=criterion,
               encoder_optimizer=encoder_optimizer,
               decoder_optimizer=decoder_optimizer,
-              epoch=epoch)
+              epoch=epoch,
+              idx2word=idx2word)
 
         # One epoch's validation
         references, hypotheses = validate(word_map,embeddings,idx2word, val_loader=valLoader,

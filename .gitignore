@@ -1,8 +1,10 @@
 *.json
 *.pkl
-*.save
+*.save*
 *.jpg
 *.xml
 monitorGPU.py
 __pycache__/
 *.py~
+*.pth*
+load.py
