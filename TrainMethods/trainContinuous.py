@@ -346,7 +346,7 @@ def main(checkpoint=None):
     print("Starting training process MIMIC")
     global device, best_bleu4, epochs_since_improvement, start_epoch, fine_tune_encoder
 
-    nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
+    nlgeval = NLGEval(metrics_to_omit=['METEOR', 'SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
     word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk('/home/jcardoso/MIMIC/embeddingsMIMIC.pkl')
     embeddings = embeddings.to(device)
