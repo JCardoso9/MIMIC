@@ -92,19 +92,30 @@ def loadEmbeddingsFromDisk(embeddingsPath):
   return word_map, embeddings, vocab_size, embed_dim
 
 
+# Improve this code
 def decodeCaption(caption, idx2word):
   """
     Transform captions comprised of word indexes into natural language captions
     :param caption: caption comprised of list of indexes.
     :param idx2word: dictionary with index -> word correspondence. 
   """
-  decodedCaption = idx2word[str(caption[0])]
+  lenVocabularyWords = len(idx2word.keys())
+  if caption[0] > lenVocabularyWords:
+    decodedCaption = '<unk>'
+  else:
+    decodedCaption = idx2word[str(caption[0])]
   
   for index in caption[1:-1]:
-    word = idx2word[str(index)]
-    if word == '.':
-        decodedCaption += word
+    if index > lenVocabularyWords:
+      if index == 17942:
+        decodedCaption += '.'
+      else:
+        decodedCaption += ' <unk>'
     else:
+      if index == 6757:
+        decodedCaption += '.'
+      else:
+        word = idx2word[str(index)]
         decodedCaption += ' ' + word   
       
   return decodedCaption
