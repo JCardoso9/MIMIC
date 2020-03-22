@@ -8,7 +8,6 @@ import re
 from utils import *
 
 
-
 class XRayDataset(Dataset):
     """MIMIC xray dataset."""
 
@@ -36,6 +35,7 @@ class XRayDataset(Dataset):
         self.transform = transform
         self.imgPaths = getFilesInDirectory(imgsDir)
         self.maxSize = maxSize
+        self.vocab_size = len(self.word2idx.keys())
 
     def __len__(self):
         return len(self.encodedCaptions)
@@ -46,69 +46,54 @@ class XRayDataset(Dataset):
         study = re.findall(r"s\d{8}", imgID)[0][1:]
         
         image = Image.open(imgID)
-   
-
-        # if self.encodedCaptionsLength[study]['impression'] != 0:
-        #   print("Imp: ", torch.LongTensor([self.encodedCaptionsLength[study]['impression']]))
-        #   encodedCaptionLength = torch.LongTensor([self.encodedCaptionsLength[study]['impression']])
-        #   encodedCaption = torch.LongTensor(self.encodedCaptions[study]['impression']) 
-
-        # elif self.encodedCaptionsLength[study]['findings'] != 0:
-        #   print("Imp: ", torch.LongTensor([self.encodedCaptionsLength[study]['findings']]))
-        #   encodedCaptionLength = torch.LongTensor([self.encodedCaptionsLength[study]['findings']])
-        #   encodedCaption = torch.LongTensor(self.encodedCaptions[study]['findings'])  
-
-        # elif self.encodedCaptionsLength[study]['last_paragprah'] != 0:
-        #   print("Imp: ", torch.LongTensor([self.encodedCaptionsLength[study]['last_paragraph']]))
-        #   encodedCaptionLength = torch.LongTensor([self.encodedCaptionsLength[study]['last_paragraph']])
-        #   encodedCaption = torch.LongTensor(self.encodedCaptions[study]['last_paragraph'])
-        
-        # else:
-        #   print("error: no captions")
 
         encodedCaptionLength = 0
         encodedCaption = []
 
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<sos>'])
+   
 
-        # print("Imp: ", torch.LongTensor([self.encodedCaptionsLength[study]['impression']]))
-        encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
-        encodedCaption += self.encodedCaptions[study]['impression']
+        if self.encodedCaptionsLength[study]['impression'] != 0:
+          encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
+          encodedCaption += self.filterOOV(self.encodedCaptions[study]['impression'])
+
+        elif self.encodedCaptionsLength[study]['findings'] != 0:
+          encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
+          encodedCaption += self.filterOOV(self.encodedCaptions[study]['findings'])
+
+           
+        elif self.encodedCaptionsLength[study]['last_paragraph'] != 0:
+          encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
+          encodedCaption += self.filterOOV(self.encodedCaptions[study]['last_paragraph'])
+        
+        # else:
+        #   print("error: no captions")
+
+        
+
+        # # print("Imp: ", torch.LongTensor([self.encodedCaptionsLength[study]['impression']]))
+        # encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
+        # encodedCaption += self.encodedCaptions[study]['impression']
 
       
-        # print("Findi: ", torch.LongTensor([self.encodedCaptionsLength[study]['findings']]))
-        encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
-        encodedCaption += self.encodedCaptions[study]['findings']
+        # # print("Findi: ", torch.LongTensor([self.encodedCaptionsLength[study]['findings']]))
+        # encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
+        # encodedCaption += self.encodedCaptions[study]['findings']
 
       
-        # print("LP: ", torch.LongTensor([self.encodedCaptionsLength[study]['last_paragraph']]))
-        encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
-        encodedCaption += self.encodedCaptions[study]['last_paragraph']
+        # # print("LP: ", torch.LongTensor([self.encodedCaptionsLength[study]['last_paragraph']]))
+        # encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
+        # encodedCaption += self.encodedCaptions[study]['last_paragraph']
 
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<eoc>'])
+
+        #filteredOOV = [x if x < vocab_size else vocab_size - 1 for x in encodedCaption]
         
         #print(encodedCaption)
         encodedCaption = self.padCaption(torch.LongTensor(encodedCaption), self.maxSize, encodedCaptionLength)
 
-        # if encodedCaptionLength > 350:
-        #   print("From encoded caption length")
-        #   print(encodedCaptionLength)
-        #   print(study)
-
-        
-
-        # if torch.LongTensor(encodedCaption).shape[0] > 350:
-        #   print("From tensor length")
-        #   print("Impressions Size: ", self.encodedCaptionsLength[study]['impression'])
-        #   print("Findings Size: ", self.encodedCaptionsLength[study]['findings'])
-        #   print("Last paragraph Size: ", self.encodedCaptionsLength[study]['last_paragraph'])
-        #   print("Actual Impressions Size: ", len(self.encodedCaptions[study]['impression']))
-        #   print("Actual Findings Size: ", len(self.encodedCaptions[study]['findings']))
-        #   print("Actual Last paragraph Size: ", len(self.encodedCaptions[study]['last_paragraph']))
-        #   print(torch.LongTensor(encodedCaption).shape[0])
-        #   print(study)
 
         
         if self.transform:
@@ -116,12 +101,20 @@ class XRayDataset(Dataset):
 
         return image,  torch.LongTensor(encodedCaption), encodedCaptionLength
 
-    def padCaption(self, caption, maxSize, encodedCaptionLength):
-      # print("MaxSize:", maxSize)
-      # print("Encoded caption length: ", encodedCaptionLength)
-      
+    # Awful code
+    def filterOOV(self, encodedCaption):
+      filtered = []
+      for index in encodedCaption:
+        if index == 17941:
+          filtered.append(self.word2idx['.'])
+        elif index >= 6761:
+          filtered.append(self.word2idx['<unk>'])
+        else:
+          filtered.append(index)
+      return filtered
+
+    def padCaption(self, caption, maxSize, encodedCaptionLength):      
       nrOfPads = maxSize - encodedCaptionLength
-      # print("nrOfPads: ", nrOfPads)
       padIdx = self.word2idx['<pad>']
 
       padSequence = torch.full([nrOfPads], padIdx,dtype =torch.long)
