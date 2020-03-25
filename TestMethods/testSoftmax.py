@@ -1,3 +1,11 @@
+
+import sys
+sys.path.append('../')
+
+sys.path.append('../Models/')
+sys.path.append('../Dataset/')
+
+
 import argparse, json
 from utils import *
 from encoder import Encoder
@@ -32,20 +40,7 @@ from nlgeval import NLGEval
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Training parameters
-start_epoch = 0
-epochs = 20  # number of epochs to train for (if early stopping is not triggered)
-epochs_since_improvement = 0  # keeps track of number of epochs since there's been an improvement in validation BLEU
-batch_size = 16
-workers = 1  # for data-loading; right now, only 1 works with h5py
-encoder_lr = 1e-4  # learning rate for encoder if fine-tuning
-decoder_lr = 4e-4  # learning rate for decoder
-grad_clip = 5.  # clip gradients at an absolute value of
-alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the paper
-best_bleu4 = 0.  # BLEU-4 score right now
-print_freq = 5  # print training/validation stats every __ batches
-fine_tune_encoder = False  # fine-tune encoder?
-checkpoint = None  # path to checkpoint, None if none
+print_freq = 5  # print stats every __ batches
 
 
 def test(idx2word, testLoader, encoder, decoder, criterion):
@@ -133,11 +128,6 @@ def test(idx2word, testLoader, encoder, decoder, criterion):
             for caption in temp_refs:
               references[0].append(decodeCaption(caption, idx2word))
 
-            # print("Caps sorted: ", caps_sorted.shape)
-            # print("References:", len(references))
-            # print("Full references: ", references)
-
-                      
 
             # Hypotheses
             _, preds = torch.max(scores_copy, dim=2)
@@ -148,8 +138,11 @@ def test(idx2word, testLoader, encoder, decoder, criterion):
             preds = temp_preds
 
             for caption in preds:
+ #             print("HIP:",decodeCaption(caption, idx2word))
               hypotheses.append(decodeCaption(caption, idx2word))
-                    
+            
+#            print("REFS:", references[0])
+#            print("HIPS: ", hypotheses)                    
 
             assert len(references[0]) == len(hypotheses)
 
@@ -163,7 +156,7 @@ def test(idx2word, testLoader, encoder, decoder, criterion):
 
 
 
-def main(modelInfoPath):
+def main(modelInfoPath, modelName):
   """
     Performs testing on the trained model.
     :param modelInfoPath: Path to the model saved during the training process
@@ -221,12 +214,27 @@ def main(modelInfoPath):
   
   metrics_dict = nlgeval.compute_metrics(references, hypotheses)
 
-  with open(modelInfoPath + "_TestResults.txt", "w+") as file:
+  with open(modelName+ "_TestResults.txt", "w+") as file:
     for metric in metrics_dict:
       file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
 
   
   
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Test Softmax Model')
+    parser.add_argument('--checkpoint', type=str, default='', metavar='N',
+                        help='Path to the model\'s checkpoint (No checkpoint: empty string)')
+
+    parser.add_argument('--modelName', type=str, default='Softmax', metavar='N',
+                        help='Name of the model to write on results file')
+
+
+
+
+    args = parser.parse_args()
+    if args.checkpoint:
+        main(args.checkpoint, args.modelName)
+
+    else:
+        main()
 

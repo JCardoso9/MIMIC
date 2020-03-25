@@ -130,44 +130,21 @@ def validate(idx2word, val_loader, encoder, decoder, criterion):
                       'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(i, len(val_loader), batch_time=batch_time,
                                                                                 loss=losses))
-                
-            
 
             # Store references (true captions), and hypothesis (prediction) for each image
             # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
             # references = [[ref1a, ref1b, ref1c], [ref2a, ref2b], ...], hypotheses = [hyp1, hyp2, ...]
 
             # References
-            # allcaps = allcaps[sort_ind]  # because images were sorted in the decoder
-            # for j in range(allcaps.shape[0]):
-            #     img_caps = allcaps[j].tolist()
-            #     img_captions = list(
-            #         map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<pad>']}],
-            #             img_caps))  # remove <start> and pads
-            #     references.append(img_captions)
-
-            
-
             temp_refs = []
             caps_sortedList = caps_sorted[:, 1:].tolist()
-            # print("Caps sorted: ", caps_sorted.shape)
             for j,refCaption in enumerate(caps_sortedList):
-              # print("J", j)
-              # print("i", i)
+              temp_refs.append(refCaption[:decode_lengths[j]])
 
-              temp_refs.append(refCaption[:decode_lengths[j]]) 
-
-            # print("-------")
-            decodedTempRef = []
 
             for caption in temp_refs:
               references[0].append(decodeCaption(caption, idx2word))
 
-            # print("Caps sorted: ", caps_sorted.shape)
-            # print("References:", len(references))
-            # print("Full references: ", references)
-
-                      
 
             # Hypotheses
             _, preds = torch.max(scores_copy, dim=2)
@@ -182,18 +159,12 @@ def validate(idx2word, val_loader, encoder, decoder, criterion):
 
 
 
-            # print("--------------")
-            # print("hypothesis: ", len(hypotheses))
-            # print("Full hypothesis: ", hypotheses)
-          
-            
-            # print(references[0])
-            # print(hypotheses)
+#            print('\nREFS: ',references[0])
+#            print('\nHIPS: ',hypotheses)
 
-            
 
             assert len(references[0]) == len(hypotheses)
-            # break
+ #           break
 
 
     now = datetime.now()
@@ -243,26 +214,13 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         targets = caps_sorted[:, 1:]
 
-        # print("Caps sorted: ", caps_sorted.shape)
-        # print("Decode Lengths: ", decode_lengths)
-        # print("Scores: ", scores.shape)
-        # print("Targets: ", targets.shape)
-        # print("Decode Lengths: ", decode_lengths)
-
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this
         scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
         targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
-        # print("After")
-        # print("Scores: ", scores.data.shape)
-        # print("Targets: ", targets.data.shape)
-
         # Calculate loss
         loss = criterion(scores.data, targets.data)
-
-        # print("LOSS: " ,loss)
-        #break
 
         # Add doubly stochastic attention regularization
         loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
@@ -274,10 +232,10 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         loss.backward()
 
         # Clip gradients
-        # if grad_clip is not None:
-        #     clip_gradient(decoder_optimizer, grad_clip)
-        #     if encoder_optimizer is not None:
-        #         clip_gradient(encoder_optimizer, grad_clip)
+        if grad_clip is not None:
+            clip_gradient(decoder_optimizer, grad_clip)
+            if encoder_optimizer is not None:
+                clip_gradient(encoder_optimizer, grad_clip)
 
         # Update weights
         decoder_optimizer.step()
@@ -291,8 +249,6 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         batch_time.update(time.time() - start)
 
         start = time.time()
-
-        
 
         # Print status
         if i % 5 == 0:
@@ -327,7 +283,6 @@ def main(checkpoint=None):
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
     # Initialize / load checkpoint
-    
     decoder = DecoderWithAttention(attention_dim=attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=decoder_dim,
@@ -335,11 +290,16 @@ def main(checkpoint=None):
                                     dropout=dropout)
 
     decoder.load_pretrained_embeddings(embeddings)  # pretrained_embeddings should be of dimensions (len(word_map), emb_dim)
-    decoder.fine_tune_embeddings(True)
+    decoder.fine_tune_embeddings(False)
     
     encoder = Encoder()
     encoder.fine_tune(fine_tune_encoder)
-        
+    
+
+    # Move to GPU, if available
+    decoder = decoder.to(device)
+    encoder = encoder.to(device)
+
     decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
                                           lr=decoder_lr)
     encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
@@ -357,9 +317,6 @@ def main(checkpoint=None):
         encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
 
 
-    # Move to GPU, if available
-    decoder = decoder.to(device)
-    encoder = encoder.to(device)
 
     # Loss function
     criterion = nn.CrossEntropyLoss().to(device)
@@ -373,7 +330,7 @@ def main(checkpoint=None):
     # Custom dataloaders
     trainLoader = DataLoader(
     XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTrainCaptions.json",'/home/jcardoso/MIMIC/encodedTrainCaptionsLengths.json','/home/jcardoso/MIMIC/Train', transform),
-     batch_size=4, shuffle=True)
+     batch_size=16, shuffle=True)
 
 
     valLoader = DataLoader(

@@ -52,20 +52,19 @@ class XRayDataset(Dataset):
 
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<sos>'])
-   
-
-        if self.encodedCaptionsLength[study]['impression'] != 0:
-          encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
-          encodedCaption += self.filterOOV(self.encodedCaptions[study]['impression'])
-
-        elif self.encodedCaptionsLength[study]['findings'] != 0:
+        
+        if self.encodedCaptionsLength[study]['findings'] != 0:
           encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
-          encodedCaption += self.filterOOV(self.encodedCaptions[study]['findings'])
+          encodedCaption += self.encodedCaptions[study]['findings']   
 
-           
+        elif self.encodedCaptionsLength[study]['impression'] != 0:
+          encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
+          encodedCaption += self.encodedCaptions[study]['impression']
+
+     
         elif self.encodedCaptionsLength[study]['last_paragraph'] != 0:
           encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
-          encodedCaption += self.filterOOV(self.encodedCaptions[study]['last_paragraph'])
+          encodedCaption += self.encodedCaptions[study]['last_paragraph']
         
         # else:
         #   print("error: no captions")
@@ -107,7 +106,7 @@ class XRayDataset(Dataset):
       for index in encodedCaption:
         if index == 17941:
           filtered.append(self.word2idx['.'])
-        elif index >= 6761:
+        elif index >= 5368:
           filtered.append(self.word2idx['<unk>'])
         else:
           filtered.append(index)

@@ -32,20 +32,7 @@ from nlgeval import NLGEval
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Training parameters
-start_epoch = 0
-epochs = 20  # number of epochs to train for (if early stopping is not triggered)
-epochs_since_improvement = 0  # keeps track of number of epochs since there's been an improvement in validation BLEU
-batch_size = 16
-workers = 1  # for data-loading; right now, only 1 works with h5py
-encoder_lr = 1e-4  # learning rate for encoder if fine-tuning
-decoder_lr = 4e-4  # learning rate for decoder
-grad_clip = 5.  # clip gradients at an absolute value of
-alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the paper
-best_bleu4 = 0.  # BLEU-4 score right now
-print_freq = 5  # print training/validation stats every __ batches
-fine_tune_encoder = False  # fine-tune encoder?
-checkpoint = None  # path to checkpoint, None if none
+print_freq = 5  # print  stats every __ batches
 
 
 def test(word_map,embeddings,idx2word, testLoader, encoder, decoder, criterion):
@@ -135,12 +122,6 @@ def test(word_map,embeddings,idx2word, testLoader, encoder, decoder, criterion):
             for caption in temp_refs:
               references[0].append(decodeCaption(caption, idx2word))
 
-            # print("Caps sorted: ", caps_sorted.shape)
-            # print("References:", len(references))
-            # print("Full references: ", references)
-
-                      
-
             # Hypotheses
             batch_hypotheses = generatePredictedCaptions(predEmbeddings_copy, decode_lengths, embeddings, idx2word)
             #print(decodedTempRef)
@@ -161,7 +142,7 @@ def test(word_map,embeddings,idx2word, testLoader, encoder, decoder, criterion):
 
 
 
-def main(modelInfoPath):
+def main(modelInfoPath, modelName):
   """
     Performs testing on the trained model.
     :param modelInfoPath: Path to the model saved during the training process
@@ -212,7 +193,7 @@ def main(modelInfoPath):
   # Create MIMIC test dataset loader
   testLoader = DataLoader(
       XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTestCaptions.json",'/home/jcardoso/MIMIC/encodedTestCaptionsLengths.json','/home/jcardoso/MIMIC/Test', transform),
-      batch_size=4, shuffle=True)
+      batch_size=16, shuffle=True)
   
   references, hypotheses = test(word_map, embeddings, idx2word, testLoader=testLoader,
                                 encoder=encoder,
@@ -223,7 +204,7 @@ def main(modelInfoPath):
 
   
 
-  with open(modelInfoPath + "_TestResults.txt", "w+") as file:
+  with open(modelName + "_TestResults.txt", "w+") as file:
     for metric in metrics_dict:
       file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
 
@@ -234,12 +215,15 @@ if __name__ == "__main__":
     parser.add_argument('--checkpoint', type=str, default='', metavar='N',
                         help='Path to the model\'s checkpoint (No checkpoint: empty string)')
 
+    parser.add_argument('--modelName', type=str, default='Continuous', metavar='N',
+                        help='Name of the model to write on results file')
+
+
+
 
     args = parser.parse_args()
     if args.checkpoint:
-        main(args.checkpoint)
+        main(args.checkpoint, args.modelName)
 
     else:
         main()
-    main()
-

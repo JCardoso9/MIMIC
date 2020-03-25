@@ -16,7 +16,6 @@ import numpy as np
 import argparse, json
 from PIL import Image
 import re
-import torch.nn as nn
 import pickle
 import time
 from datetime import datetime
@@ -24,14 +23,12 @@ from datetime import datetime
 
 import torch.nn as nn
 import torch.optim as optim
-from nltk.translate.bleu_score import corpus_bleu
 import torch.backends.cudnn as cudnn
 import torchvision
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pack_padded_sequence
-from nltk.translate.bleu_score import SmoothingFunction
 
 from nlgeval import NLGEval
 
@@ -97,37 +94,15 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         targets = caps_sorted[:, 1:]
 
-        # print("Caps sorted: ", caps_sorted.shape)
-        # print("Decode Lengths: ", decode_lengths)
-        # print("Scores: ", scores.shape)
-        # print("Targets: ", targets.shape)
-        # print("Decode Lengths: ", decode_lengths)
-
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this
-        
         scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
         targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
-        # print("After")
-        # print("Scores: ", scores.data.shape)
-        # print("Targets: ", targets.data.shape)
-
-        # Calculate loss
-        # Cross-entropy 
-        # loss = criterion(scores.data, targets.data)
-
-        # Cosine Sim
-        # print(scores.data.shape)
-        
-        # print(targets.data.shape)
+        # Cosine Sim Loss
         targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-        # print(targets.shape)
         y = torch.ones(targets.shape[0]).to(device)
         loss = criterion(scores.data, targets,y)
-
-        # print("LOSS: " ,loss)
-        #break
 
         # Add doubly stochastic attention regularization
         loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
@@ -139,10 +114,10 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         loss.backward()
 
         # Clip gradients
-        # if grad_clip is not None:
-        #     clip_gradient(decoder_optimizer, grad_clip)
-        #     if encoder_optimizer is not None:
-        #         clip_gradient(encoder_optimizer, grad_clip)
+        if grad_clip is not None:
+            clip_gradient(decoder_optimizer, grad_clip)
+            if encoder_optimizer is not None:
+                clip_gradient(encoder_optimizer, grad_clip)
 
         # Update weights
         decoder_optimizer.step()
@@ -225,18 +200,8 @@ def validate(word_map,embeddings,idx2word, val_loader, encoder, decoder, criteri
             targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
             # Calculate loss
-            # Cross entropy
-            # loss = criterion(scores.data, targets.data)
-
             # Cosine Sim
-            # batch_size = scores.shape[0]
-            # embed_dim = scores.shape[2]
-            # print("Batch size: ", batch_size)
-            # print("Embed dim: ", embed_dim)
-            # y = torch.ones(batch_size, embed_dim).to(device)
-
             targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-            # print(targets.shape)
             y = torch.ones(targets.shape[0]).to(device)
             loss = criterion(predEmbeddings.data, targets,y)
 
@@ -266,57 +231,21 @@ def validate(word_map,embeddings,idx2word, val_loader, encoder, decoder, criteri
             # references = [[ref1a, ref1b, ref1c], [ref2a, ref2b], ...], hypotheses = [hyp1, hyp2, ...]
 
             # References
-            # allcaps = allcaps[sort_ind]  # because images were sorted in the decoder
-            # for j in range(allcaps.shape[0]):
-            #     img_caps = allcaps[j].tolist()
-            #     img_captions = list(
-            #         map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<pad>']}],
-            #             img_caps))  # remove <start> and pads
-            #     references.append(img_captions)
-
-            
-
             temp_refs = []
             caps_sortedList = caps_sorted[:, 1:].tolist()
-            # print("Caps sorted: ", caps_sorted.shape)
             for j,refCaption in enumerate(caps_sortedList):
-              # print("J", j)
-              # print("i", i)
-
               temp_refs.append(refCaption[:decode_lengths[j]]) 
 
-            # print("-------")
             decodedTempRef = []
 
             for caption in temp_refs:
               references[0].append(decodeCaption(caption, idx2word))
 
-            # print("Caps sorted: ", caps_sorted.shape)
-            # print("References:", len(references))
-            # print("Full references: ", references)
-
-                      
 
             # Hypotheses
-
-            #findClosestWord(continuousOutput, wordMap)
-
-
             batch_hypotheses = generatePredictedCaptions(predEmbeddings_copy, decode_lengths, embeddings, idx2word)
-            #print(decodedTempRef)
-
-            
             hypotheses.extend(batch_hypotheses)
-            
-            # print("-------")
 
-
-
-            # print("--------------")
-            # print("hypothesis: ", len(hypotheses))
-            # print("Full hypothesis: ", hypotheses)
-          
-            
             # print(references[0])
             # print(hypotheses)
 
@@ -326,13 +255,6 @@ def validate(word_map,embeddings,idx2word, val_loader, encoder, decoder, criteri
             # break
 
 
-        # nlgeval = NLGEval()  # loads the models
-        # metrics_dict = nlgeval.compute_metrics(references, hypotheses)
-
-        # print(
-        #     '\n * LOSS - {loss.avg:.3f}, BLEU-4 - {bleu}\n'.format(
-        #         loss=losses,
-        #         bleu=bleu4))
     now = datetime.now()
     day_string = now.strftime("%d_%m_%Y")
     path = 'valLosses_' + day_string
@@ -370,7 +292,7 @@ def main(checkpoint=None):
                                 dropout=dropout)
 
     decoder.load_pretrained_embeddings(embeddings)  # pretrained_embeddings should be of dimensions (len(word_map), emb_dim)
-    decoder.fine_tune_embeddings(True)
+    decoder.fine_tune_embeddings(False)
     decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
                                           lr=decoder_lr)
     encoder = Encoder()
