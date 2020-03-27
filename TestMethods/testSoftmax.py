@@ -41,9 +41,9 @@ from nlgeval import NLGEval
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print_freq = 5  # print stats every __ batches
+alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the pape
 
-
-def test(idx2word, testLoader, encoder, decoder, criterion):
+def test(modelName, idx2word, testLoader, encoder, decoder, criterion):
     """
     Performs testing for the pretrained model
     :param word_map: dictionary with word -> embedding correspondence
@@ -142,14 +142,12 @@ def test(idx2word, testLoader, encoder, decoder, criterion):
               hypotheses.append(decodeCaption(caption, idx2word))
             
 #            print("REFS:", references[0])
-#            print("HIPS: ", hypotheses)                    
-
+            print("HIPS: ", hypotheses)                    
+            break
             assert len(references[0]) == len(hypotheses)
 
 
-    now = datetime.now()
-    day_string = now.strftime("%d_%m_%Y")
-    path = 'testLoss' + day_string
+    path = modelName + '_testLoss'
     writeLossToFile(losses.avg, path)
 
     return references, hypotheses
@@ -207,7 +205,7 @@ def main(modelInfoPath, modelName):
       XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTestCaptions.json",'/home/jcardoso/MIMIC/encodedTestCaptionsLengths.json','/home/jcardoso/MIMIC/Test', transform),
       batch_size=4, shuffle=True)
   
-  references, hypotheses = test(idx2word, testLoader=testLoader,
+  references, hypotheses = test(modelName, idx2word, testLoader=testLoader,
                                 encoder=encoder,
                                 decoder=decoder,
                                 criterion=criterion)

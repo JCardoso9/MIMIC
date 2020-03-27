@@ -56,7 +56,7 @@ checkpoint = None  # path to checkpoint, None if none
 
 
 
-def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, idx2word, word_map):
+def train(modelName, train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, idx2word, word_map):
     """
     Performs one epoch's training.
     :param train_loader: DataLoader for training data
@@ -142,15 +142,13 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(train_loader),
                                                                           batch_time=batch_time,
                                                                           data_time=data_time, loss=losses))
-    now = datetime.now()
-    day_string = now.strftime("%d_%m_%Y")
-    path = 'trainLosses_' + day_string
+    path = modelName + '_trainLosses'
     writeLossToFile(losses.avg, path)
 
 
 
 
-def validate(word_map,embeddings,idx2word, val_loader, encoder, decoder, criterion):
+def validate(modelName, word_map,embeddings,idx2word, val_loader, encoder, decoder, criterion):
     """
     Performs one epoch's validation.
     :param val_loader: DataLoader for validation data.
@@ -255,15 +253,13 @@ def validate(word_map,embeddings,idx2word, val_loader, encoder, decoder, criteri
             # break
 
 
-    now = datetime.now()
-    day_string = now.strftime("%d_%m_%Y")
-    path = 'valLosses_' + day_string
+    path = modelName + '_valLosses' 
     writeLossToFile(losses.avg, path)
 
     return references, hypotheses
 
 
-def main(checkpoint=None):
+def main(checkpoint, modelName):
 
     print("Starting training process MIMIC")
     global device, best_bleu4, epochs_since_improvement, start_epoch, fine_tune_encoder
@@ -293,9 +289,14 @@ def main(checkpoint=None):
 
     decoder.load_pretrained_embeddings(embeddings)  # pretrained_embeddings should be of dimensions (len(word_map), emb_dim)
     decoder.fine_tune_embeddings(False)
+
+    encoder = Encoder()
+    # Move to GPU, if available
+    decoder = decoder.to(device)
+    encoder = encoder.to(device)
+
     decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
                                           lr=decoder_lr)
-    encoder = Encoder()
     encoder.fine_tune(fine_tune_encoder)
     encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
                                           lr=encoder_lr) if fine_tune_encoder else None
@@ -313,10 +314,6 @@ def main(checkpoint=None):
 
 
 
-    # Move to GPU, if available
-    decoder = decoder.to(device)
-    encoder = encoder.to(device)
-
     # Loss function
     criterion = nn.CosineEmbeddingLoss().to(device)
 
@@ -329,7 +326,7 @@ def main(checkpoint=None):
     # Custom dataloaders
     trainLoader = DataLoader(
     XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTestCaptions.json",'/home/jcardoso/MIMIC/encodedTestCaptionsLengths.json','/home/jcardoso/MIMIC/Test', transform),
-     batch_size=4, shuffle=True)
+     batch_size=16, shuffle=True)
 
 
     valLoader = DataLoader(
@@ -347,7 +344,7 @@ def main(checkpoint=None):
                 adjust_learning_rate(encoder_optimizer, 0.8)
 
         # One epoch's training
-        train(train_loader=trainLoader,
+        train(modelName, train_loader=trainLoader,
               encoder=encoder,
               decoder=decoder,
               criterion=criterion,
@@ -358,7 +355,7 @@ def main(checkpoint=None):
               word_map=word_map)
 
         # One epoch's validation
-        references, hypotheses = validate(word_map,embeddings,idx2word, val_loader=valLoader,
+        references, hypotheses = validate(modelName, word_map,embeddings,idx2word, val_loader=valLoader,
                                 encoder=encoder,
                                 decoder=decoder,
                                 criterion=criterion)
@@ -374,6 +371,11 @@ def main(checkpoint=None):
         best_bleu4 = max(recent_bleu4, best_bleu4)
 
         print("Metrics: ", metrics_dict)
+        with open(modelName + "_metrics.txt", "w+") as file:
+            file.write("Epoch " + str(epoch) + " results:")
+            for metric in metrics_dict:
+                file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
+            file.write("------------------------------------------")
 
         print("Best BLEU: ", best_bleu4)
         if not is_best:
@@ -383,21 +385,26 @@ def main(checkpoint=None):
             epochs_since_improvement = 0
 
         # Save checkpoint
-        save_checkpoint( epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
+        save_checkpoint(modelName, epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
                         decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict)
 
 
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Show, Attend and Tell')
-    parser.add_argument('--checkpoint', type=str, default='', metavar='N',
+    parser = argparse.ArgumentParser(description='Test Continuous Model')
+    parser.add_argument('--checkpoint', type=str, default=None, metavar='N',
                         help='Path to the model\'s checkpoint (No checkpoint: empty string)')
+
+    parser.add_argument('--modelName', type=str, default='Continuous', metavar='N',
+                        help='Name of the model to write on results file')
+
+
 
 
     args = parser.parse_args()
     if args.checkpoint:
-        main(args.checkpoint)
+        main(args.checkpoint, args.modelName)
 
     else:
-        main()
+        main(args.checkpoint, args.modelName)

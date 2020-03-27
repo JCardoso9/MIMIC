@@ -92,7 +92,6 @@ def loadEmbeddingsFromDisk(embeddingsPath):
   return word_map, embeddings, vocab_size, embed_dim
 
 
-# Improve this code
 def decodeCaption(caption, idx2word):
     decodedCaption = idx2word[str(caption[0])]
 
@@ -119,7 +118,7 @@ def adjust_learning_rate(optimizer, shrink_factor):
 
 
 
-def save_checkpoint( epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer, decoder_optimizer,
+def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer, decoder_optimizer,
                     bleu4, is_best, metrics_dict):
     """
     Saves model checkpoint.
@@ -156,8 +155,8 @@ def save_checkpoint( epoch, epochs_since_improvement, encoder, decoder, encoder_
     torch.save(state, filename)
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
-        filename = 'checkpoint_' + day_string + '.pth.tar'
-        torch.save(state, 'BEST_' + filename)
+        filename = 'checkpoint_' + modelName +"_" + day_string + '.pth.tar'
+        torch.save(state, 'BEST_' + modelName + "_" + filename)
         
         
         
@@ -225,12 +224,11 @@ def generatePredictedCaptions(predEmbeddings, decode_lengths, embeddings, idx2wo
     caption = findClosestWord(predEmbeddings[captionNr, 0, :].data, embeddings, idx2word) # First word of caption
 
     for predictedWordEmbedding in predEmbeddings[captionNr,1:decode_lengths[captionNr], :]:
-      # print("New word")
       word = findClosestWord(predictedWordEmbedding.data, embeddings, idx2word)
       if word == '.':
         caption += word
       else:
         caption += ' ' + word
     captions.append(caption)
-    # print(captions)
+
   return captions

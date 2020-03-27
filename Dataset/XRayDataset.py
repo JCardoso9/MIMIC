@@ -53,6 +53,8 @@ class XRayDataset(Dataset):
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<sos>'])
         
+
+        # Reports are comprised of only one setion
         if self.encodedCaptionsLength[study]['findings'] != 0:
           encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
           encodedCaption += self.encodedCaptions[study]['findings']   
@@ -70,7 +72,7 @@ class XRayDataset(Dataset):
         #   print("error: no captions")
 
         
-
+        # Reports are comprised of all available sections
         # # print("Imp: ", torch.LongTensor([self.encodedCaptionsLength[study]['impression']]))
         # encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
         # encodedCaption += self.encodedCaptions[study]['impression']
@@ -88,29 +90,14 @@ class XRayDataset(Dataset):
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<eoc>'])
 
-        #filteredOOV = [x if x < vocab_size else vocab_size - 1 for x in encodedCaption]
-        
-        #print(encodedCaption)
         encodedCaption = self.padCaption(torch.LongTensor(encodedCaption), self.maxSize, encodedCaptionLength)
 
 
-        
         if self.transform:
             image = self.transform(image)
 
         return image,  torch.LongTensor(encodedCaption), encodedCaptionLength
 
-    # Awful code
-    def filterOOV(self, encodedCaption):
-      filtered = []
-      for index in encodedCaption:
-        if index == 17941:
-          filtered.append(self.word2idx['.'])
-        elif index >= 5368:
-          filtered.append(self.word2idx['<unk>'])
-        else:
-          filtered.append(index)
-      return filtered
 
     def padCaption(self, caption, maxSize, encodedCaptionLength):      
       nrOfPads = maxSize - encodedCaptionLength
@@ -119,7 +106,3 @@ class XRayDataset(Dataset):
       padSequence = torch.full([nrOfPads], padIdx,dtype =torch.long)
 
       return torch.cat((caption, padSequence), 0)
-    
-
-
-    

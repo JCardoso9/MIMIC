@@ -1,3 +1,10 @@
+import sys
+sys.path.append('../')
+
+sys.path.append('../Models/')
+sys.path.append('../Dataset/')
+
+
 import argparse, json
 from utils import *
 from encoder import Encoder
@@ -33,9 +40,10 @@ from nlgeval import NLGEval
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print_freq = 5  # print  stats every __ batches
+alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the pape
 
 
-def test(word_map,embeddings,idx2word, testLoader, encoder, decoder, criterion):
+def test(modelName, word_map,embeddings,idx2word, testLoader, encoder, decoder, criterion):
     """
     Performs testing for the pretrained model
     :param word_map: dictionary with word -> embedding correspondence
@@ -126,16 +134,14 @@ def test(word_map,embeddings,idx2word, testLoader, encoder, decoder, criterion):
             batch_hypotheses = generatePredictedCaptions(predEmbeddings_copy, decode_lengths, embeddings, idx2word)
             #print(decodedTempRef)
 
-            
+            print("JIPS: ", batch_hypotheses)            
             hypotheses.extend(batch_hypotheses)
-                    
+            break
 
             assert len(references[0]) == len(hypotheses)
 
 
-    now = datetime.now()
-    day_string = now.strftime("%d_%m_%Y")
-    path = 'testLoss' + day_string
+    path = modelName + '_testLoss' 
     writeLossToFile(losses.avg, path)
 
     return references, hypotheses
@@ -195,7 +201,7 @@ def main(modelInfoPath, modelName):
       XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTestCaptions.json",'/home/jcardoso/MIMIC/encodedTestCaptionsLengths.json','/home/jcardoso/MIMIC/Test', transform),
       batch_size=16, shuffle=True)
   
-  references, hypotheses = test(word_map, embeddings, idx2word, testLoader=testLoader,
+  references, hypotheses = test(modelName, word_map, embeddings, idx2word, testLoader=testLoader,
                                 encoder=encoder,
                                 decoder=decoder,
                                 criterion=criterion)

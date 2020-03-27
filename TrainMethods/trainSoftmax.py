@@ -60,7 +60,7 @@ checkpoint = None  # path to checkpoint, None if none
 
 
 
-def validate(idx2word, val_loader, encoder, decoder, criterion):
+def validate(modelName, idx2word, val_loader, encoder, decoder, criterion):
     """
     Performs one epoch's validation.
     :param val_loader: DataLoader for validation data.
@@ -167,16 +167,14 @@ def validate(idx2word, val_loader, encoder, decoder, criterion):
  #           break
 
 
-    now = datetime.now()
-    day_string = now.strftime("%d_%m_%Y")
-    path = 'valLosses_' + day_string
+    path = modelName + '_valLosses' 
     writeLossToFile(losses.avg, path)
 
     return references, hypotheses
 
 
 
-def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch):
+def train(modelName, train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch):
     """
     Performs one epoch's training.
     :param train_loader: DataLoader for training data
@@ -258,9 +256,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(train_loader),
                                                                           batch_time=batch_time,
                                                                           data_time=data_time, loss=losses))
-    now = datetime.now()
-    day_string = now.strftime("%d_%m_%Y")
-    path = 'trainLosses_' + day_string
+    path = modelName + '_trainLosses'
     writeLossToFile(losses.avg, path)
 
 def main(checkpoint=None):
@@ -348,7 +344,7 @@ def main(checkpoint=None):
                 adjust_learning_rate(encoder_optimizer, 0.8)
 
         # One epoch's training
-        train(train_loader=trainLoader,
+        train(modelName,train_loader=trainLoader,
               encoder=encoder,
               decoder=decoder,
               criterion=criterion,
@@ -357,13 +353,20 @@ def main(checkpoint=None):
               epoch=epoch)
 
         # One epoch's validation
-        references, hypotheses = validate(idx2word, val_loader=valLoader,
+        references, hypotheses = validate(modelName, idx2word, val_loader=valLoader,
                                 encoder=encoder,
                                 decoder=decoder,
                                 criterion=criterion)
 
         # nlgeval = NLGEval()
         metrics_dict = nlgeval.compute_metrics(references, hypotheses)
+
+        print("Metrics: " + metrics_dict)
+        with open(modelName + "_metrics.txt", "w+") as file:
+            file.write("Epoch " + epoch + " results:")
+            for metric in metrics_dict:
+                file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
+            file.write("------------------------------------------")
 
         recent_bleu4 = metrics_dict['Bleu_4']
 
@@ -380,21 +383,29 @@ def main(checkpoint=None):
             epochs_since_improvement = 0
 
         # Save checkpoint
-        save_checkpoint( epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
+        save_checkpoint( modelName, epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
                         decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict)
 
 
 
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Show, Attend and Tell')
-    parser.add_argument('--checkpoint', type=str, default='', metavar='N',
+    parser = argparse.ArgumentParser(description='Test Softmax Model')
+    parser.add_argument('--checkpoint', type=str, default=None, metavar='N',
                         help='Path to the model\'s checkpoint (No checkpoint: empty string)')
+
+    parser.add_argument('--modelName', type=str, default='Softmax', metavar='N',
+                        help='Name of the model to write on results file')
+
+
 
 
     args = parser.parse_args()
     if args.checkpoint:
-        main(args.checkpoint)
+        main(args.checkpoint, args.modelName)
 
     else:
-        main()
+        main(args.checkpoint, args.modelName)
+
+
