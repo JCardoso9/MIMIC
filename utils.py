@@ -78,7 +78,7 @@ def getFilesInDirectory(path):
   return files
 
 
-def loadEmbeddingsFromDisk(embeddingsPath):
+def loadEmbeddingsFromDisk(embeddingsPath, normalize=True):
   """
     Load the dictionary with word -> embeddings correspondence. Return also vocab size, embeddings matrix and
     the embeddings dimension
@@ -88,6 +88,12 @@ def loadEmbeddingsFromDisk(embeddingsPath):
   vocab_size = len(list(word_map.keys()))
   embed_dim = len(list(word_map.values())[1])
   embeddings = torch.FloatTensor(list(word_map.values()))
+
+  if normalize:
+    embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+    words = list(word_map.keys())
+    for n in range(len(words)):
+      word_map[n] = embeddings[n] 
 
   return word_map, embeddings, vocab_size, embed_dim
 
@@ -133,15 +139,7 @@ def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder
     :param is_best: is this checkpoint the best so far?
     """
 
-    now = datetime.now()
- 
-    print("now =", now)
-
     # dd/mm/YY H:M:S
-    dt_string = now.strftime("%d_%m_%Y__%H_%M_%S_")
-
-    day_string = now.strftime("%d_%m_%Y")
-    print("date and time =", dt_string)
     state = {'epoch': epoch,
              'epochs_since_improvement': epochs_since_improvement,
              'bleu-4': bleu4,
@@ -151,12 +149,11 @@ def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder
              'decoder_optimizer': decoder_optimizer,
              'metrics_dict': metrics_dict}
 
-    filename = 'checkpoint_' + dt_string + '.pth.tar'
+    filename = 'checkpoint_' + modelName + '.pth.tar'
     torch.save(state, filename)
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
-        filename = 'checkpoint_' + modelName +"_" + day_string + '.pth.tar'
-        torch.save(state, 'BEST_' + modelName + "_" + filename)
+        torch.save(state, 'BEST_' + modelName + '.pth.tar')
         
         
         

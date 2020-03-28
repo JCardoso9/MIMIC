@@ -52,7 +52,7 @@ best_bleu4 = 0.  # BLEU-4 score right now
 print_freq = 5  # print training/validation stats every __ batches
 fine_tune_encoder = True  # fine-tune encoder?
 checkpoint = None  # path to checkpoint, None if none
-
+normalize = True
 
 
 
@@ -89,20 +89,24 @@ def train(modelName, train_loader, encoder, decoder, criterion, encoder_optimize
 
         # Forward prop.
         imgs = encoder(imgs)
-        scores, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
+        predEmbeddings, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
 
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         targets = caps_sorted[:, 1:]
 
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this
-        scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
+        predEmbeddings = pack_padded_sequence(predEmbeddings, decode_lengths, batch_first=True)
         targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
         # Cosine Sim Loss
         targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
         y = torch.ones(targets.shape[0]).to(device)
-        loss = criterion(scores.data, targets,y)
+        predEmbeddings = predEmbeddings.data
+        if normalize:
+            targets = torch.nn.functional.normalize(targets, p=2, dim=1)
+            predEmbeddings = torch.nn.functional.normalize(predEmbeddings, p=2, dim=1)
+        loss = criterion(predEmbeddings, targets,y)
 
         # Add doubly stochastic attention regularization
         loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
@@ -201,7 +205,11 @@ def validate(modelName, word_map,embeddings,idx2word, val_loader, encoder, decod
             # Cosine Sim
             targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
             y = torch.ones(targets.shape[0]).to(device)
-            loss = criterion(predEmbeddings.data, targets,y)
+            predEmbeddings = predEmbeddings.data
+            if normalize:
+                targets = torch.nn.functional.normalize(targets, p=2, dim=1)
+                predEmbeddings = torch.nn.functional.normalize(predEmbeddings, p=2, dim=1)
+            loss = criterion(predEmbeddings, targets,y)
 
             # Add doubly stochastic attention regularization
             loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
@@ -325,7 +333,7 @@ def main(checkpoint, modelName):
 
     # Custom dataloaders
     trainLoader = DataLoader(
-    XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTestCaptions.json",'/home/jcardoso/MIMIC/encodedTestCaptionsLengths.json','/home/jcardoso/MIMIC/Test', transform),
+    XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTrainCaptions.json",'/home/jcardoso/MIMIC/encodedTrainCaptionsLengths.json','/home/jcardoso/MIMIC/Train', transform),
      batch_size=16, shuffle=True)
 
 
@@ -371,11 +379,11 @@ def main(checkpoint, modelName):
         best_bleu4 = max(recent_bleu4, best_bleu4)
 
         print("Metrics: ", metrics_dict)
-        with open(modelName + "_metrics.txt", "w+") as file:
-            file.write("Epoch " + str(epoch) + " results:")
+        with open(modelName + "_metrics.txt", "a+") as file:
+            file.write("Epoch " + str(epoch) + " results:\n")
             for metric in metrics_dict:
                 file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
-            file.write("------------------------------------------")
+            file.write("------------------------------------------\n")
 
         print("Best BLEU: ", best_bleu4)
         if not is_best:

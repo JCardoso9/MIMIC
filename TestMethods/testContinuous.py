@@ -41,7 +41,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print_freq = 5  # print  stats every __ batches
 alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the pape
-
+Normalize = True
 
 def test(modelName, word_map,embeddings,idx2word, testLoader, encoder, decoder, criterion):
     """
@@ -98,7 +98,11 @@ def test(modelName, word_map,embeddings,idx2word, testLoader, encoder, decoder, 
             # Calculate loss
             targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
             y = torch.ones(targets.shape[0]).to(device)
-            loss = criterion(predEmbeddings.data, targets,y)
+            predEmbeddings = predEmbeddings.data
+            if normalize:
+                predEmbeddings = torch.nn.functional.normalize(predEmbeddings, p=2, dim=1)
+                targets = torch.nn.functional.normalize(targets, p=2, dim=1) 
+            loss = criterion(predEmbeddings, targets,y)
 
             # Add doubly stochastic attention regularization
             loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
@@ -134,9 +138,9 @@ def test(modelName, word_map,embeddings,idx2word, testLoader, encoder, decoder, 
             batch_hypotheses = generatePredictedCaptions(predEmbeddings_copy, decode_lengths, embeddings, idx2word)
             #print(decodedTempRef)
 
-            print("JIPS: ", batch_hypotheses)            
+ #           print("JIPS: ", batch_hypotheses)            
             hypotheses.extend(batch_hypotheses)
-            break
+#            break
 
             assert len(references[0]) == len(hypotheses)
 

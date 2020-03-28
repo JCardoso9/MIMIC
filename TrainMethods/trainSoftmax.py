@@ -362,11 +362,11 @@ def main(checkpoint=None):
         metrics_dict = nlgeval.compute_metrics(references, hypotheses)
 
         print("Metrics: " + metrics_dict)
-        with open(modelName + "_metrics.txt", "w+") as file:
-            file.write("Epoch " + epoch + " results:")
+        with open(modelName + "_metrics.txt", "a+") as file:
+            file.write("Epoch " + str(epoch) + " results:\n")
             for metric in metrics_dict:
                 file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
-            file.write("------------------------------------------")
+            file.write("------------------------------------------\n")
 
         recent_bleu4 = metrics_dict['Bleu_4']
 
