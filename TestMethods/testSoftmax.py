@@ -42,6 +42,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print_freq = 5  # print stats every __ batches
 alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the pape
+normalize = False
+
 
 def test(modelName, idx2word, testLoader, encoder, decoder, criterion):
     """
@@ -169,7 +171,7 @@ def main(modelInfoPath, modelName):
   nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
   #Load embeddings 
-  word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk('/home/jcardoso/MIMIC/embeddingsMIMIC.pkl')
+  word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk('/home/jcardoso/MIMIC/embeddingsMIMIC.pkl', normalize)
 
   attention_dim = 512  # dimension of attention linear layers
   decoder_dim = 512  # dimension of decoder RNN

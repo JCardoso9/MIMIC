@@ -93,7 +93,7 @@ def loadEmbeddingsFromDisk(embeddingsPath, normalize=True):
     embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
     words = list(word_map.keys())
     for n in range(len(words)):
-      word_map[n] = embeddings[n] 
+      word_map[words[n]] = embeddings[n].numpy() 
 
   return word_map, embeddings, vocab_size, embed_dim
 
@@ -121,6 +121,7 @@ def adjust_learning_rate(optimizer, shrink_factor):
     for param_group in optimizer.param_groups:
         param_group['lr'] = param_group['lr'] * shrink_factor
     print("The new learning rate is %f\n" % (optimizer.param_groups[0]['lr'],))
+    return optimizer.param_groups[0]['lr']
 
 
 
@@ -182,7 +183,7 @@ def getEmbeddingsOfTargets(targets, idx2word, wordMap):
     """
   targetsList = targets.data.tolist()
   word = idx2word[str(targetsList[0])]
-  
+
   # create tensor with embedding of first word
   targetEmbeddings = wordMap[word]
   targetEmbeddings = torch.from_numpy(targetEmbeddings).unsqueeze_(0).to(device)
@@ -194,7 +195,6 @@ def getEmbeddingsOfTargets(targets, idx2word, wordMap):
     embedding = torch.from_numpy(embedding).unsqueeze_(0).to(device)
     targetEmbeddings = torch.cat((targetEmbeddings, embedding),0)
   return targetEmbeddings
-
 
 # continuous output (tensor of embed_dim)
 def findClosestWord(continuousOutput, embeddings, idx2word):
