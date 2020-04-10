@@ -53,7 +53,7 @@ print_freq = 5  # print training/validation stats every __ batches
 fine_tune_encoder = True  # fine-tune encoder?
 checkpoint = None  # path to checkpoint, None if none
 normalize = True
-
+current_lr = 999
 
 
 def train(modelName, train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, idx2word, word_map):
@@ -146,7 +146,7 @@ def train(modelName, train_loader, encoder, decoder, criterion, encoder_optimize
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(train_loader),
                                                                           batch_time=batch_time,
                                                                           data_time=data_time, loss=losses))
-    path = modelName + '_trainLosses'
+    path = 'Results/' + modelName + '_trainLosses'
     writeLossToFile(losses.avg, path)
 
 
@@ -261,10 +261,10 @@ def validate(modelName, word_map,embeddings,idx2word, val_loader, encoder, decod
             # break
 
 
-    path = modelName + '_valLosses' 
+    path = 'Results/' + modelName + '_valLosses' 
     writeLossToFile(losses.avg, path)
 
-    return references, hypotheses
+    return references, hypotheses, losses.avg
 
 
 def main(checkpoint, modelName):
@@ -287,6 +287,7 @@ def main(checkpoint, modelName):
     dropout = 0.5
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
+    best_loss = 999
 
     # Initialize / load checkpoint
     decoder = ContinuousOutputDecoderWithAttention(attention_dim=attention_dim,
@@ -314,12 +315,13 @@ def main(checkpoint, modelName):
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
         best_bleu4 = checkpoint['bleu-4']
+        best_loss = checkpoint['best_loss']
 
         decoder.load_state_dict(checkpoint['decoder'])
         decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
         encoder.load_state_dict(checkpoint['encoder'])
         encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
-
+        current_lr = encoder_optimizer.param_groups[0]['lr']
 
 
     # Loss function
@@ -333,7 +335,7 @@ def main(checkpoint, modelName):
 
     # Custom dataloaders
     trainLoader = DataLoader(
-    XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTrainCaptions.json",'/home/jcardoso/MIMIC/encodedTrainCaptionsLengths.json','/home/jcardoso/MIMIC/Train', transform),
+    XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedValCaptions.json",'/home/jcardoso/MIMIC/encodedValCaptionsLengths.json','/home/jcardoso/MIMIC/Val', transform),
      batch_size=16, shuffle=True)
 
 
@@ -344,12 +346,13 @@ def main(checkpoint, modelName):
 
     for epoch in range(start_epoch, epochs):
         # Decay learning rate if there is no improvement for 8 consecutive epochs, and terminate training after 20
-        if epochs_since_improvement == 20:
+        if epochs_since_improvement == 5:
             break
-        if epochs_since_improvement > 0 and epochs_since_improvement % 8 == 0:
-            adjust_learning_rate(decoder_optimizer, 0.8)
+        if epochs_since_improvement >= 3 and current_lr > threshold_lr:
+            current_lr = adjust_learning_rate(decoder_optimizer, 0.5)
             if fine_tune_encoder:
-                adjust_learning_rate(encoder_optimizer, 0.8)
+                adjust_learning_rate(encoder_optimizer, 0.5)
+
 
         # One epoch's training
         train(modelName, train_loader=trainLoader,
@@ -363,7 +366,7 @@ def main(checkpoint, modelName):
               word_map=word_map)
 
         # One epoch's validation
-        references, hypotheses = validate(modelName, word_map,embeddings,idx2word, val_loader=valLoader,
+        references, hypotheses recent_loss = validate(modelName, word_map,embeddings,idx2word, val_loader=valLoader,
                                 encoder=encoder,
                                 decoder=decoder,
                                 criterion=criterion)
@@ -374,12 +377,12 @@ def main(checkpoint, modelName):
         recent_bleu4 = metrics_dict['Bleu_4']
 
         # Check if there was an improvement
-        is_best = recent_bleu4 > best_bleu4
+        is_best = recent_loss < best_loss
 
-        best_bleu4 = max(recent_bleu4, best_bleu4)
+        best_bleu4 = min(recent_loss, best_loss)
 
         print("Metrics: ", metrics_dict)
-        with open(modelName + "_metrics.txt", "a+") as file:
+        with open('Results/' + modelName + "_metrics.txt", "a+") as file:
             file.write("Epoch " + str(epoch) + " results:\n")
             for metric in metrics_dict:
                 file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
@@ -394,7 +397,7 @@ def main(checkpoint, modelName):
 
         # Save checkpoint
         save_checkpoint(modelName, epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
-                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict)
+                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict, best_loss)
 
 
 

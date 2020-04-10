@@ -49,15 +49,16 @@ epochs = 20  # number of epochs to train for (if early stopping is not triggered
 epochs_since_improvement = 0  # keeps track of number of epochs since there's been an improvement in validation BLEU
 batch_size = 16
 workers = 1  # for data-loading; right now, only 1 works with h5py
-encoder_lr = 1e-4  # learning rate for encoder if fine-tuning
-decoder_lr = 4e-4  # learning rate for decoder
+encoder_lr = 1e-3  # learning rate for encoder if fine-tuning
+decoder_lr = 1e-3  # learning rate for decoder
+lr_threshold = 1e-5 # threshold value for decaying lr
 grad_clip = 5.  # clip gradients at an absolute value of
 alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the paper
 best_bleu4 = 0.  # BLEU-4 score right now
 print_freq = 5  # print training/validation stats every __ batches
 fine_tune_encoder = True  # fine-tune encoder?
 checkpoint = None  # path to checkpoint, None if none
-
+current_lr = 999
 
 
 def validate(modelName, idx2word, val_loader, encoder, decoder, criterion):
@@ -167,10 +168,10 @@ def validate(modelName, idx2word, val_loader, encoder, decoder, criterion):
  #           break
 
 
-    path = modelName + '_valLosses' 
+    path = 'Results/'+ modelName + '_valLosses' 
     writeLossToFile(losses.avg, path)
 
-    return references, hypotheses
+    return references, hypotheses, losses.avg
 
 
 
@@ -256,10 +257,10 @@ def train(modelName, train_loader, encoder, decoder, criterion, encoder_optimize
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(train_loader),
                                                                           batch_time=batch_time,
                                                                           data_time=data_time, loss=losses))
-    path = modelName + '_trainLosses'
+    path = 'Results/'+ modelName + '_trainLosses'
     writeLossToFile(losses.avg, path)
 
-def main(checkpoint=None):
+def main(checkpoint=None, modelName=None):
 
     print("Starting training process MIMIC")
     global device, best_bleu4, epochs_since_improvement, start_epoch, fine_tune_encoder
@@ -277,6 +278,7 @@ def main(checkpoint=None):
     dropout = 0.5
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
+    best_loss = 999
 
     # Initialize / load checkpoint
     decoder = DecoderWithAttention(attention_dim=attention_dim,
@@ -306,12 +308,13 @@ def main(checkpoint=None):
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
         best_bleu4 = checkpoint['bleu-4']
+        best_loss = checkpoint['best_loss']
 
         decoder.load_state_dict(checkpoint['decoder'])
         decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
         encoder.load_state_dict(checkpoint['encoder'])
         encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer'])
-
+        current_lr = encoder_optimizer.param_groups[0]['lr']
 
 
     # Loss function
@@ -336,12 +339,12 @@ def main(checkpoint=None):
 
     for epoch in range(start_epoch, epochs):
         # Decay learning rate if there is no improvement for 8 consecutive epochs, and terminate training after 20
-        if epochs_since_improvement == 20:
+        if epochs_since_improvement == 5:
             break
-        if epochs_since_improvement > 0 and epochs_since_improvement % 8 == 0:
-            adjust_learning_rate(decoder_optimizer, 0.8)
+        if epochs_since_improvement >= 3 and current_lr > threshold_lr:
+            current_lr = adjust_learning_rate(decoder_optimizer, 0.5)
             if fine_tune_encoder:
-                adjust_learning_rate(encoder_optimizer, 0.8)
+                adjust_learning_rate(encoder_optimizer, 0.5)
 
         # One epoch's training
         train(modelName,train_loader=trainLoader,
@@ -353,7 +356,7 @@ def main(checkpoint=None):
               epoch=epoch)
 
         # One epoch's validation
-        references, hypotheses = validate(modelName, idx2word, val_loader=valLoader,
+        references, hypotheses, recent_loss = validate(modelName, idx2word, val_loader=valLoader,
                                 encoder=encoder,
                                 decoder=decoder,
                                 criterion=criterion)
@@ -361,8 +364,8 @@ def main(checkpoint=None):
         # nlgeval = NLGEval()
         metrics_dict = nlgeval.compute_metrics(references, hypotheses)
 
-        print("Metrics: " + metrics_dict)
-        with open(modelName + "_metrics.txt", "a+") as file:
+        print("Metrics: " , metrics_dict)
+        with open('Results/' + modelName + "_metrics.txt", "a+") as file:
             file.write("Epoch " + str(epoch) + " results:\n")
             for metric in metrics_dict:
                 file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
@@ -371,9 +374,9 @@ def main(checkpoint=None):
         recent_bleu4 = metrics_dict['Bleu_4']
 
         # Check if there was an improvement
-        is_best = recent_bleu4 > best_bleu4
+        is_best = recent_loss < best_loss
 
-        best_bleu4 = max(recent_bleu4, best_bleu4)
+        best_loss = min(recent_loss, best_loss)
 
         print("Best BLEU: ", best_bleu4)
         if not is_best:
@@ -384,7 +387,7 @@ def main(checkpoint=None):
 
         # Save checkpoint
         save_checkpoint( modelName, epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
-                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict)
+                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict, best_loss)
 
 
 

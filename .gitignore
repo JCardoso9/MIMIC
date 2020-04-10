@@ -8,3 +8,5 @@ __pycache__/
 *.py~
 *.pth*
 load.py
+TrainMethods/Results/
+TrainMethods/SavedModels/

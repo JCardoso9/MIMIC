@@ -1,3 +1,4 @@
+
 from datetime import datetime
 
 import torch
@@ -126,7 +127,7 @@ def adjust_learning_rate(optimizer, shrink_factor):
 
 
 def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer, decoder_optimizer,
-                    bleu4, is_best, metrics_dict):
+                    bleu4, is_best, metrics_dict, best_loss):
     """
     Saves model checkpoint.
     :param data_name: base name of processed dataset
@@ -148,13 +149,14 @@ def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder
              'decoder': decoder,
              'encoder_optimizer': encoder_optimizer,
              'decoder_optimizer': decoder_optimizer,
-             'metrics_dict': metrics_dict}
+             'metrics_dict': metrics_dict,
+             'best_loss:':best_loss}
 
-    filename = 'checkpoint_' + modelName + '.pth.tar'
+    filename = 'SavedModels/checkpoint_' + modelName + '.pth.tar'
     torch.save(state, filename)
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
-        torch.save(state, 'BEST_' + modelName + '.pth.tar')
+        torch.save(state, 'SavedModels/BEST_' + modelName + '.pth.tar')
         
         
         
