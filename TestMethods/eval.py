@@ -17,13 +17,57 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets de
 cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
 # Load model
-checkpoint = torch.load(checkpoint)
-decoder = checkpoint['decoder']
-decoder = decoder.to(device)
-decoder.eval()
-encoder = checkpoint['encoder']
-encoder = encoder.to(device)
-encoder.eval()
+encoder, decoder, criterion, embeddings, word_map = setupModel(argParser)
+
+
+else:
+  decoder = DecoderWithAttention(attention_dim=attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=decoder_dim,
+                                    vocab_size=vocab_size,
+                                    dropout=0.5)
+
+  decoder.load_pretrained_embeddings(embeddings)  
+  encoder = Encoder()
+
+  # Load trained model
+  modelInfo = torch.load(modelInfoPath)
+  decoder.load_state_dict(modelInfo['decoder'])
+  encoder.load_state_dict(modelInfo['encoder'])
+
+  # Move to GPU, if available
+  decoder = decoder.to(device)
+  encoder = encoder.to(device)
+
+if (testing):
+  decoder.eval()
+  encoder.eval()
+
+
+if (args.loss == 'Softmax'):
+  criterion = nn.CrossEntropyLoss().to(device)
+
+elif (args.loss == 'CosineSimilarity'):
+  criterion = nn.CosineEmbeddingsLoss().to(device)
+
+elif (args.loss == 'TripleMarginLoss'):
+  #criterion = tripletmarginloss
+
+  transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+    ])
+
+  # Create MIMIC test dataset loader
+  testLoader = DataLoader(
+      XRayDataset(args.word2idxPath, args.encodedCaptionsPath, args.encodedCaptionsPath, args.imgsPath, transform),
+      batch_size=args.batch_size, shuffle=True)
+
+
+
+
+
 
 # Load word map (word2ix)
 with open(word_map_file, 'r') as j:
@@ -176,4 +220,5 @@ def evaluate(beam_size):
 
 if __name__ == '__main__':
     beam_size = 1
+
     print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)))
