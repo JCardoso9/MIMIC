@@ -107,7 +107,7 @@ def setupModel(args):
 
 def setupDataLoaders(args):
   """
-    Create the necessary data loaders according to run type: Training/Tesing
+    Create the necessary data loaders according to run type: Training/Testing
     :param args: Argument Parser object with definitions set in a specified config file
   """
 
@@ -136,10 +136,7 @@ def setupDataLoaders(args):
 
 
 def initializeTrainingEnvironment(args):
-  trainingEnvironment = TrainingEnvironment()
-  trainingEnvironment.setupTrainingEnvironment(args)
-
-  return trainingEnvironment
+  return TrainingEnvironment(args)
 
 
 def loadWordIndexDicts(args):

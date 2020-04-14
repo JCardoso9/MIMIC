@@ -3,14 +3,8 @@ class TrainingEnvironment:
     """
     Decoder.
     """
-    __instance = None
-    def __new__(cls, val):
-        if TrainingEnvironment.__instance is None:
-            TrainingEnvironment.__instance = object.__new__(cls)
-        TrainingEnvironment.__instance.val = val
-        return TrainingEnvironment.__instance
 
-    def setupTrainingEnvironment(args):
+    def __init__(self,args):
       """
         Setup the training environment by setting the various variables to their
         suitable values.
@@ -18,10 +12,9 @@ class TrainingEnvironment:
       """
       if args.checkpoint is None:
         self.current_lr = args.decoder_lr
-        self.start_epoch = modelInfo['epoch'] + 1
-        self.epochs_since_improvement = modelInfo['epochs_since_improvement']
-        self.best_bleu4 = modelInfo['bleu-4']
-        self.best_loss = modelInfo['best_loss']
+        self.epochs_since_improvement = 0
+        self.best_bleu4 = 0
+        self.best_loss = 999
         self.start_epoch = 0
 
       else:
@@ -38,7 +31,6 @@ class TrainingEnvironment:
       self.alpha_c = args.alpha_c
       self.print_freq = args.print_freq
 
-      self.workers = args.workers
 
 
 
