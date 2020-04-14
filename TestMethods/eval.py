@@ -1,83 +1,45 @@
+import sys
+sys.path.append('../Utils/')
+sys.path.append('../')
+
+from setupEnvironment import *
+from testArgParser import *
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
-from datasets import *
-from utils import *
 from nltk.translate.bleu_score import corpus_bleu
 import torch.nn.functional as F
-from tqdm import tqdm
+#from tqdm import tqdm
 
-# Parameters
-data_folder = '/media/ssd/caption data'  # folder with data files saved by create_input_files.py
-data_name = 'coco_5_cap_per_img_5_min_word_freq'  # base name shared by data files
-checkpoint = '../BEST_checkpoint_coco_5_cap_per_img_5_min_word_freq.pth.tar'  # model checkpoint
-word_map_file = '/media/ssd/caption data/WORDMAP_coco_5_cap_per_img_5_min_word_freq.json'  # word map, ensure it's the same the data was encoded with and the model was trained with
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
-cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
+argParser = get_args()
+
+print(argParser)
 # Load model
 encoder, decoder, criterion, embeddings, word_map = setupModel(argParser)
 
+# Create data loaders
+testLoader, _ = setupDataLoaders(argParser)
 
-else:
-  decoder = DecoderWithAttention(attention_dim=attention_dim,
-                                    embed_dim=embed_dim,
-                                    decoder_dim=decoder_dim,
-                                    vocab_size=vocab_size,
-                                    dropout=0.5)
+# Load word <-> embeddings matrix index correspondence dictionaries
+idx2word, word2idx = loadWordIndexDicts(argParser)
 
-  decoder.load_pretrained_embeddings(embeddings)  
-  encoder = Encoder()
-
-  # Load trained model
-  modelInfo = torch.load(modelInfoPath)
-  decoder.load_state_dict(modelInfo['decoder'])
-  encoder.load_state_dict(modelInfo['encoder'])
-
-  # Move to GPU, if available
-  decoder = decoder.to(device)
-  encoder = encoder.to(device)
-
-if (testing):
-  decoder.eval()
-  encoder.eval()
-
-
-if (args.loss == 'Softmax'):
-  criterion = nn.CrossEntropyLoss().to(device)
-
-elif (args.loss == 'CosineSimilarity'):
-  criterion = nn.CosineEmbeddingsLoss().to(device)
-
-elif (args.loss == 'TripleMarginLoss'):
-  #criterion = tripletmarginloss
-
-  transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
-    ])
-
-  # Create MIMIC test dataset loader
-  testLoader = DataLoader(
-      XRayDataset(args.word2idxPath, args.encodedCaptionsPath, args.encodedCaptionsPath, args.imgsPath, transform),
-      batch_size=args.batch_size, shuffle=True)
-
-
-
-
+#trainingEnvironment = initializeTrainingEnvironment(argParser)
 
 
 # Load word map (word2ix)
-with open(word_map_file, 'r') as j:
-    word_map = json.load(j)
-rev_word_map = {v: k for k, v in word_map.items()}
-vocab_size = len(word_map)
+#with open(word_map_file, 'r') as j:
+#    word_map = json.load(j)
+#rev_word_map = {v: k for k, v in word_map.items()}
+#vocab_size = len(word_map)
 
 # Normalization transform
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
+#normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+#                                 std=[0.229, 0.224, 0.225])
+
+
 
 
 def evaluate(beam_size):
@@ -218,7 +180,7 @@ def evaluate(beam_size):
     return bleu4
 
 
-if __name__ == '__main__':
-    beam_size = 1
+#if __name__ == '__main__':
+#    beam_size = 1
 
-    print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)))
+#    print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)))

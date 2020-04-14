@@ -18,25 +18,29 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=1,
                         help='define batch size to train the model')
 
-    parser.add_argument('--word2idxPath', type=str, default="/home/jcardoso/MIMIC/word2idx.json",
-                        help='path to the dictionary with word -> index correspondence')
+    parser.add_argument('--word2idxPath', type=str, default="",
+                        help='path to the dictionary with word -> embeddings matrix index correspondence')
 
-    parser.add_argument('--encodedCaptionsPath', type=str, default="/home/jcardoso/MIMIC/encodedTestCaptions.json",
+    parser.add_argument('--idx2wordPath', type=str, default="",
+                        help='path to the dictionary with embeddings matrix index -> word correspondence')
+
+
+    parser.add_argument('--encodedTestCaptionsPath', type=str, default="",
                         help='path to the encoded captions to be used')
 
-    parser.add_argument('--encodedCaptionsLengthsPath', type=str, default='/home/jcardoso/MIMIC/encodedTestCaptionsLengths.json',
+    parser.add_argument('--encodedTestCaptionsLengthsPath', type=str, default='',
                         help='path to the encoded captions lengths to be used')
  
-    parser.add_argument('--imgsPath', type=str, default='/home/jcardoso/MIMIC/Test',
+    parser.add_argument('--testImgsPath', type=str, default='',
                         help='path to the images to be used')
 
-    parser.add_argument('--embeddingsPath', type=str, default='/home/jcardoso/MIMIC/embeddingsMIMIC.pkl',
+    parser.add_argument('--embeddingsPath', type=str, default='',
                         help='path to the embeddings dictionary')
 
     parser.add_argument('--loss', type=str, default='CosineSim',
                         help='loss to be used')
 
-    parser.add_argument('--normalizeEmb', action='store_true', default=True,
+    parser.add_argument('--normalizeEmb', type=bool, default=False,
                         help='normalize embeddings?')
 
     parser.add_argument('--attention_dim', type=int,
@@ -48,17 +52,13 @@ def get_args():
     parser.add_argument('--dropout', type=float, default=0.5,
                         help='define dropout probability')
 
-
-
-
-    parser.add_argument('--embedding_type', type=str, default=None,
-                        choices=[model.value for model in EmbeddingsType])
-
     parser.add_argument('--print_freq', type=int,
                         default=5, help='define print freq of loss')
 
-    opts, _ = parser.parse_known_args()
+#    opts, _ = parser.parse_known_args()
 
-    args = parser.parse_args()
+ #   args = parser.parse_args()
+
+    args, unknown = parser.parse_known_args()
 
     return args
