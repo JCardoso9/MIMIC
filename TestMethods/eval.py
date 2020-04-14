@@ -3,7 +3,7 @@ sys.path.append('../Utils/')
 sys.path.append('../')
 
 from setupEnvironment import *
-from testArgParser import *
+from argParser import *
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data

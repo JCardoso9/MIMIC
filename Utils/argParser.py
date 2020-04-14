@@ -24,6 +24,14 @@ def get_args():
     parser.add_argument('--idx2wordPath', type=str, default="",
                         help='path to the dictionary with embeddings matrix index -> word correspondence')
 
+    parser.add_argument('--encodedTestCaptionsPath', type=str, default="",
+                        help='path to the encoded captions to be used')
+
+    parser.add_argument('--encodedTestCaptionsLengthsPath', type=str, default='',
+                        help='path to the encoded captions lengths to be used')
+ 
+    parser.add_argument('--testImgsPath', type=str, default='',
+                        help='path to the images to be used')
 
     parser.add_argument('--encodedTrainCaptionsPath', type=str, default="",
                         help='path to the encoded captions to be used')
