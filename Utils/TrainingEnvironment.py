@@ -1,7 +1,7 @@
 class TrainingEnvironment:
 
     """
-    Decoder.
+      Class containing variables to be used during training phase.
     """
 
     def __init__(self,args):

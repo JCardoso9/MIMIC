@@ -10,7 +10,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 from nltk.translate.bleu_score import corpus_bleu
 import torch.nn.functional as F
-#from tqdm import tqdm
+from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -26,19 +26,10 @@ testLoader, _ = setupDataLoaders(argParser)
 # Load word <-> embeddings matrix index correspondence dictionaries
 idx2word, word2idx = loadWordIndexDicts(argParser)
 
-#trainingEnvironment = initializeTrainingEnvironment(argParser)
 
+vocab_size = embeddings.shape[0]
 
-# Load word map (word2ix)
-#with open(word_map_file, 'r') as j:
-#    word_map = json.load(j)
-#rev_word_map = {v: k for k, v in word_map.items()}
-#vocab_size = len(word_map)
-
-# Normalization transform
-#normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-#                                 std=[0.229, 0.224, 0.225])
-
+print(vocab_size)
 
 
 
@@ -49,10 +40,6 @@ def evaluate(beam_size):
     :param beam_size: beam size at which to generate captions for evaluation
     :return: BLEU-4 score
     """
-    # DataLoader
-    loader = torch.utils.data.DataLoader(
-        CaptionDataset(data_folder, data_name, 'TEST', transform=transforms.Compose([normalize])),
-        batch_size=1, shuffle=True, num_workers=1, pin_memory=True)
 
     # TODO: Batched Beam Search
     # Therefore, do not use a batch_size greater than 1 - IMPORTANT!
@@ -64,8 +51,8 @@ def evaluate(beam_size):
     hypotheses = list()
 
     # For each image
-    for i, (image, caps, caplens, allcaps) in enumerate(
-            tqdm(loader, desc="EVALUATING AT BEAM SIZE " + str(beam_size))):
+    for i, (image, caps, caplens) in enumerate(
+            tqdm(testLoader, desc="EVALUATING AT BEAM SIZE " + str(beam_size))):
 
         k = beam_size
 
@@ -78,14 +65,19 @@ def evaluate(beam_size):
         encoder_dim = encoder_out.size(3)
 
         # Flatten encoding
-        encoder_out = encoder_out.view(1, -1, encoder_dim)  # (1, num_pixels, encoder_dim)
+        encoder_out = encoder_out.view(argParser.batch_size, -1, encoder_dim)  # (1, num_pixels, encoder_dim)
         num_pixels = encoder_out.size(1)
 
         # We'll treat the problem as having a batch size of k
         encoder_out = encoder_out.expand(k, num_pixels, encoder_dim)  # (k, num_pixels, encoder_dim)
 
         # Tensor to store top k previous words at each step; now they're just <start>
-        k_prev_words = torch.LongTensor([[word_map['<start>']]] * k).to(device)  # (k, 1)
+        k_prev_words = torch.LongTensor([word2idx['<sos>']] * k).to(device)  # (k, 1)
+
+
+#        print("K Prev: ", k_prev_words)
+#        exit(1)
+
 
         # Tensor to store top k sequences; now they're just <start>
         seqs = k_prev_words  # (k, 1)
@@ -130,12 +122,16 @@ def evaluate(beam_size):
             prev_word_inds = top_k_words / vocab_size  # (s)
             next_word_inds = top_k_words % vocab_size  # (s)
 
+            print(prev_word_inds)
+            print(next_word_inds)
+            print(seqs[prev_word_inds].shape)
+            print(next_word_inds.unsqueeze(1).shape)
             # Add new words to sequences
             seqs = torch.cat([seqs[prev_word_inds], next_word_inds.unsqueeze(1)], dim=1)  # (s, step+1)
 
             # Which sequences are incomplete (didn't reach <end>)?
             incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
-                               next_word != word_map['<end>']]
+                               next_word != word2idx['<eoc>']]
             complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
 
             # Set aside complete sequences
@@ -165,22 +161,22 @@ def evaluate(beam_size):
         # References
         img_caps = allcaps[0].tolist()
         img_captions = list(
-            map(lambda c: [w for w in c if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}],
+            map(lambda c: [w for w in c if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}],
                 img_caps))  # remove <start> and pads
         references.append(img_captions)
 
         # Hypotheses
-        hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
+        hypotheses.append([w for w in seq if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}])
 
         assert len(references) == len(hypotheses)
 
     # Calculate BLEU-4 scores
-    bleu4 = corpus_bleu(references, hypotheses)
-
+    #bleu4 = corpus_bleu(references, hypotheses)
+    print(hypotheses)
     return bleu4
 
 
-#if __name__ == '__main__':
+if __name__ == '__main__':
 #    beam_size = 1
-
+    evaluate(1)
 #    print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)))

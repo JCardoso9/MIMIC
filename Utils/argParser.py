@@ -57,6 +57,12 @@ def get_args():
     parser.add_argument('--loss', type=str, default='CosineSim',
                         help='loss to be used')
 
+    parser.add_argument('--triplet_loss_margin', type=float, default=0.5,
+                        help='margin used in triplet margin loss computation')
+
+    parser.add_argument('--triplet_loss_mode', type=str, default='Ortho',
+                        help='Negative sampling mode: Ortho, Dif, MINS.')
+
     parser.add_argument('--normalizeEmb', type=bool, default=False,
                         help='normalize embeddings?')
 

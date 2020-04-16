@@ -3,7 +3,7 @@ import sys
 sys.path.append('../Dataset/')
 sys.path.append('../Models/')
 sys.path.append('../Utils/')
-
+sys.path.append('../')
 
 from encoder import Encoder
 from Attention import *
@@ -11,6 +11,8 @@ from DecoderWAttention import *
 from ContinuousOutputDecoderWithAttention import *
 from XRayDataset import *
 from TrainingEnvironment import *
+from losses import *
+
 from datetime import datetime
 
 import torch
@@ -47,12 +49,14 @@ def setupModel(args):
                                     vocab_size=vocab_size,
                                     dropout=args.dropout)
 
-  else:
+  elif (args.model == 'Softmax'):
     decoder = DecoderWithAttention(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
                                     dropout=args.dropout)
+
+
 
   decoder.load_pretrained_embeddings(embeddings)
   encoder = Encoder()
@@ -95,8 +99,7 @@ def setupModel(args):
     criterion = nn.CosineEmbeddingsLoss().to(device)
 
   elif (args.loss == 'TripleMarginLoss'):
-    pass
-    #criterion = tripletmarginloss
+    criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)
 
   return encoder, decoder, criterion, embeddings, word_map
 
