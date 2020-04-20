@@ -104,9 +104,14 @@ def get_args():
     parser.add_argument('--alpha_c', type=float, default=1.,
                         help='regularization parameter for doubly stochastic attention')
 
+    parser.add_argument('--use_tf_as_input', type=int, default=1,
+                        help='Use teacher forcing during training?')
 
+    parser.add_argument('--early_stop_epoch_threshold', type=int, default=5,
+                        help='Number of epochs without improvement which leads to early stop')
 
-
+    parser.add_argument('--decay_LR_epoch_threshold', type=int, default=3,
+                        help='Number of epochs without improvement which incurs a decay in learning rate')
 
 
 

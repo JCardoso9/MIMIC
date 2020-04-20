@@ -47,14 +47,18 @@ def setupModel(args):
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
-                                    dropout=args.dropout)
+                                    sos_embedding = embeddings[word2idx['<sos>']],
+                                    dropout=args.dropout,
+                                    use_tf_as_input = args.use_tf_as_input)
 
   elif (args.model == 'Softmax'):
     decoder = DecoderWithAttention(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
-                                    dropout=args.dropout)
+                                    embeddings[word2idx['<sos>']],
+                                    dropout=args.dropout,
+                                    use_tf_as_input = args.use_tf_as_input)
 
 
 
@@ -96,12 +100,12 @@ def setupModel(args):
     criterion = nn.CrossEntropyLoss().to(device)
 
   elif (args.loss == 'CosineSimilarity'):
-    criterion = nn.CosineEmbeddingsLoss().to(device)
+    criterion = CosineEmbedLoss()
 
   elif (args.loss == 'TripleMarginLoss'):
     criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)
 
-  return encoder, decoder, criterion, embeddings, word_map
+  return encoder, decoder, criterion, embeddings, word_map, encoder_optimizer, decoder_optimizer
 
 
 

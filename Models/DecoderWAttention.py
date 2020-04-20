@@ -11,7 +11,9 @@ class DecoderWithAttention(nn.Module):
     Decoder.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim=2048, dropout=0.5):
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding,encoder_dim=2048,
+                 dropout=0.5, use_tf_as_input = 0):
+        
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -28,6 +30,9 @@ class DecoderWithAttention(nn.Module):
         self.decoder_dim = decoder_dim
         self.vocab_size = vocab_size
         self.dropout = dropout
+        self.sos_embedding = sos_embedding
+        self.use_tf_as_input = use_tf_as_input
+
 
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
 
@@ -75,6 +80,10 @@ class DecoderWithAttention(nn.Module):
         c = self.init_c(mean_encoder_out)
         return h, c
 
+    def set_teacher_forcing_usage(value):
+        self.use_tf_as_input = value
+
+
     def forward(self, encoder_out, encoded_captions, caption_lengths):
         """
         Forward propagation.
@@ -115,6 +124,8 @@ class DecoderWithAttention(nn.Module):
         predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
+        input = self.sos_embedding.expand(batch_size, 200).to(device)
+
         # At each time-step, decode by
         # attention-weighing the encoder's output based on the decoder's previous hidden state output
         # then generate a new word in the decoder with the previous word and the attention weighted encoding
@@ -124,11 +135,17 @@ class DecoderWithAttention(nn.Module):
                                                                 h[:batch_size_t])
             gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
             attention_weighted_encoding = gate * attention_weighted_encoding
+            print(predictions.shape)
             h, c = self.decode_step(
-                torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
+                torch.cat([input, attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
             preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha
 
+
+            input =  (1 - self.use_tf_as_input) * self.embedding(preds) + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
+
+            #exit(1)
+#         exit(1)
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind

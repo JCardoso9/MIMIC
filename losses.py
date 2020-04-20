@@ -3,6 +3,29 @@ import torch.nn as nn
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+
+
+class CosineEmbedLoss(nn.Module):
+    '''
+      Uses pytorch's cosine embedding loss. Class created to abstract need of
+      using a y vector.
+    '''
+
+    def __init__(self):
+      super(CosineEmbedLoss, self).__init__()
+      # Loss function
+      criterion = nn.CosineEmbeddingLoss().to(device)
+
+
+    def forward(self, targets, preds):
+      y = torch.ones(targets.shape[0]).to(device)
+      loss = self.criterion(preds, targets,y)
+      return loss
+
+
+
+
 class SyntheticTripletLoss(nn.Module):
     """
     Triplet margin Loss using syntethically created negative examples
@@ -13,7 +36,7 @@ class SyntheticTripletLoss(nn.Module):
       super(SyntheticTripletLoss, self).__init__()
       self.margin = 0.5
       self.mode = mode
-        
+
 
     def forward(self, targets, preds):
       '''
@@ -28,12 +51,12 @@ class SyntheticTripletLoss(nn.Module):
       # û− (û.T dotprod u)u   ---- û: pred embedding, u: target embedding
       if self.mode == 'Ortho':
         negSamples = preds - torch.mm(preds, targets.T).diag().unsqueeze(1).expand(targets.shape[0], targets.shape[1]) * targets
-      
-      
+
+
       # embeddings normalized -> cosine sim = dot product
-      simPredToTarget = torch.mm(preds, targets.T).diag() 
+      simPredToTarget = torch.mm(preds, targets.T).diag()
       simPredToNegSample = torch.mm(preds, negSamples.T).diag()
-     
+
       marginT = torch.ones(targets.shape[0]).to(device)
       marginT = marginT.new_full((targets.shape[0],), self.margin, dtype=torch.float, device=device, requires_grad=False)
 

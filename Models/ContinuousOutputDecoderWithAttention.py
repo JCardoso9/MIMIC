@@ -1,3 +1,4 @@
+import json
 import torch
 from torch import nn
 import torchvision
@@ -12,7 +13,8 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, encoder_dim=2048, dropout=0.5):
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+                 dropout=0.5, use_tf_as_input = 1):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -29,6 +31,8 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         self.decoder_dim = decoder_dim
         self.vocab_size = vocab_size
         self.dropout = dropout
+        self.sos_embedding = sos_embedding
+        self.use_tf_as_input = use_tf_as_input
 
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
 
@@ -76,6 +80,10 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         c = self.init_c(mean_encoder_out)
         return h, c
 
+    def set_teacher_forcing_usage(value):
+        self.use_tf_as_input = value
+
+
     def forward(self, encoder_out, encoded_captions, caption_lengths):
         """
         Forward propagation.
@@ -112,8 +120,9 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         predictions = torch.zeros(batch_size, max(decode_lengths), self.embed_dim).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
+        #input = self.sos_embedding.expand(batch_size, 200).to(device)
         # At each time-step, decode by
-        # attention-weighing the encoder's output based on the decoder's previous hidden state output
+	        # attention-weighing the encoder's output based on the decoder's previous hidden state output
         # then generate a new word in the decoder with the previous word and the attention weighted encoding
         for t in range(max(decode_lengths)):
             batch_size_t = sum([l > t for l in decode_lengths])
@@ -127,5 +136,6 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
             preds = self.fc(self.dropout(h))  # (batch_size_t, embed_dim)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha
+         #   input =  (1 - self.use_tf_as_input) * preds + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind
