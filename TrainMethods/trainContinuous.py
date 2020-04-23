@@ -44,8 +44,8 @@ epochs = 20  # number of epochs to train for (if early stopping is not triggered
 epochs_since_improvement = 0  # keeps track of number of epochs since there's been an improvement in validation BLEU
 batch_size = 16
 workers = 1  # for data-loading; right now, only 1 works with h5py
-encoder_lr = 1e-4  # learning rate for encoder if fine-tuning
-decoder_lr = 4e-4  # learning rate for decoder
+encoder_lr = 1e-3  # learning rate for encoder if fine-tuning
+decoder_lr = 4e-3  # learning rate for decoder
 grad_clip = 5.  # clip gradients at an absolute value of
 alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the paper
 best_bleu4 = 0.  # BLEU-4 score right now
@@ -280,6 +280,9 @@ def main(checkpoint, modelName):
     with open('/home/jcardoso/MIMIC/idx2word.json') as fp:
         idx2word = json.load(fp)
 
+    with open('/home/jcardoso/MIMIC/word2idx.json') as fp:
+        word2idx = json.load(fp)
+
 
     emb_dim = 200
     attention_dim = 512  # dimension of attention linear layers
@@ -294,7 +297,9 @@ def main(checkpoint, modelName):
                                 embed_dim=emb_dim,
                                 decoder_dim=decoder_dim,
                                 vocab_size=vocab_size,
-                                dropout=dropout)
+                                sos_embedding = embeddings[word2idx['<sos>']],
+                                dropout=dropout,
+                                use_tf_as_input = 1)
 
     decoder.load_pretrained_embeddings(embeddings)  # pretrained_embeddings should be of dimensions (len(word_map), emb_dim)
     decoder.fine_tune_embeddings(False)
@@ -315,7 +320,7 @@ def main(checkpoint, modelName):
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
         best_bleu4 = checkpoint['bleu-4']
-        best_loss = checkpoint['best_loss']
+        best_loss = checkpoint['best_loss:']
 
         decoder.load_state_dict(checkpoint['decoder'])
         decoder_optimizer.load_state_dict(checkpoint['decoder_optimizer'])
@@ -335,7 +340,7 @@ def main(checkpoint, modelName):
 
     # Custom dataloaders
     trainLoader = DataLoader(
-    XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedValCaptions.json",'/home/jcardoso/MIMIC/encodedValCaptionsLengths.json','/home/jcardoso/MIMIC/Val', transform),
+    XRayDataset("/home/jcardoso/MIMIC/word2idx.json","/home/jcardoso/MIMIC/encodedTrainCaptions.json",'/home/jcardoso/MIMIC/encodedTrainCaptionsLengths.json','/home/jcardoso/MIMIC/Train', transform),
      batch_size=16, shuffle=True)
 
 
@@ -366,7 +371,7 @@ def main(checkpoint, modelName):
               word_map=word_map)
 
         # One epoch's validation
-        references, hypotheses recent_loss = validate(modelName, word_map,embeddings,idx2word, val_loader=valLoader,
+        references, hypotheses ,recent_loss = validate(modelName, word_map,embeddings,idx2word, val_loader=valLoader,
                                 encoder=encoder,
                                 decoder=decoder,
                                 criterion=criterion)

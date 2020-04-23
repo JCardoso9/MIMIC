@@ -15,7 +15,7 @@ class CosineEmbedLoss(nn.Module):
     def __init__(self):
       super(CosineEmbedLoss, self).__init__()
       # Loss function
-      criterion = nn.CosineEmbeddingLoss().to(device)
+      self.criterion = nn.CosineEmbeddingLoss().to(device)
 
 
     def forward(self, targets, preds):
@@ -52,7 +52,12 @@ class SyntheticTripletLoss(nn.Module):
       if self.mode == 'Ortho':
         negSamples = preds - torch.mm(preds, targets.T).diag().unsqueeze(1).expand(targets.shape[0], targets.shape[1]) * targets
 
+      # Create negative sample by subtraction
+      # û - u  ----û: pred embedding, u: target embedding
+      elif self.mode == 'Diff':
+        negSamples = preds - targets
 
+      negSamples = torch.nn.functional.normalize(negSamples, p=2, dim=1)
       # embeddings normalized -> cosine sim = dot product
       simPredToTarget = torch.mm(preds, targets.T).diag()
       simPredToNegSample = torch.mm(preds, negSamples.T).diag()

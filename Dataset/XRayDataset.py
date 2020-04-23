@@ -59,11 +59,13 @@ class XRayDataset(Dataset):
           encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
           encodedCaption += self.encodedCaptions[study]['findings']   
 
+
+
         elif self.encodedCaptionsLength[study]['impression'] != 0:
           encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
           encodedCaption += self.encodedCaptions[study]['impression']
 
-     
+
         elif self.encodedCaptionsLength[study]['last_paragraph'] != 0:
           encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
           encodedCaption += self.encodedCaptions[study]['last_paragraph']

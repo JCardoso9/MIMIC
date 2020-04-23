@@ -40,6 +40,8 @@ def setupModel(args):
 
   # Load embeddings from disk
   word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk(args.embeddingsPath, args.normalizeEmb)
+  
+  idx2word, word2idx = loadWordIndexDicts(args)
 
   # Create adequate model
   if (args.model == 'Continuous'):
@@ -56,7 +58,7 @@ def setupModel(args):
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
-                                    embeddings[word2idx['<sos>']],
+                                    sos_embedding = embeddings[word2idx['<sos>']],
                                     dropout=args.dropout,
                                     use_tf_as_input = args.use_tf_as_input)
 
@@ -79,6 +81,8 @@ def setupModel(args):
   if (args.runType == "Testing"):
     decoder.eval()
     encoder.eval()
+    encoder_optimizer = None
+    decoder_optimizer = None
 
   # If training, create optimizers. If necessary, load previous checkpoint.
   # Also check if fine tuning embeddings and/or encoder is necessary
@@ -105,7 +109,8 @@ def setupModel(args):
   elif (args.loss == 'TripleMarginLoss'):
     criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)
 
-  return encoder, decoder, criterion, embeddings, word_map, encoder_optimizer, decoder_optimizer
+  return encoder, decoder, criterion, embeddings, word_map, encoder_optimizer, decoder_optimizer, idx2word, word2idx
+
 
 
 

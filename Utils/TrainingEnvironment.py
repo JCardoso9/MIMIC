@@ -1,4 +1,4 @@
-	class TrainingEnvironment:
+class TrainingEnvironment:
 
     """
       Class containing variables to be used during training phase.

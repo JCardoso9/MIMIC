@@ -32,7 +32,7 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         self.vocab_size = vocab_size
         self.dropout = dropout
         self.sos_embedding = sos_embedding
-        self.use_tf_as_input = use_tf_as_input
+        self.use_tf_as_input = use_tf_as_input 
 
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
 
@@ -80,7 +80,7 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         c = self.init_c(mean_encoder_out)
         return h, c
 
-    def set_teacher_forcing_usage(value):
+    def set_teacher_forcing_usage(self, value):
         self.use_tf_as_input = value
 
 
@@ -120,7 +120,7 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         predictions = torch.zeros(batch_size, max(decode_lengths), self.embed_dim).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
-        #input = self.sos_embedding.expand(batch_size, 200).to(device)
+        input = self.sos_embedding.expand(batch_size, 200).to(device)
         # At each time-step, decode by
 	        # attention-weighing the encoder's output based on the decoder's previous hidden state output
         # then generate a new word in the decoder with the previous word and the attention weighted encoding
@@ -131,11 +131,19 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
 #            gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
 #            attention_weighted_encoding = gate * attention_weighted_encoding
             h, c = self.decode_step(
-                torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
+                torch.cat([input[:batch_size_t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
             preds = self.fc(self.dropout(h))  # (batch_size_t, embed_dim)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha
-         #   input =  (1 - self.use_tf_as_input) * preds + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
+
+            if self.use_tf_as_input > 0:
+                if t <= max(decode_lengths) -1 :
+                    input = embeddings[:batch_size_t, t+1, :]
+#                print("TF")
+            else:
+                
+                input =  torch.nn.functional.normalize(preds, p=2, dim=1)
+            #input =  (1 - self.use_tf_as_input) * preds + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind

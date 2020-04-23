@@ -42,7 +42,7 @@ from nlgeval import NLGEval
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DISABLE_TEACHER_FORCING = 0
 
-def validate(argParser, idx2word, val_loader, encoder, decoder, criterion):
+def validate(argParser, val_loader, encoder, decoder, criterion, idx2word, word_map, embeddings):
     """
     Performs one epoch's validation.
     :param val_loader: DataLoader for validation data.
@@ -81,35 +81,30 @@ def validate(argParser, idx2word, val_loader, encoder, decoder, criterion):
             # Forward prop.
             if encoder is not None:
                 imgs = encoder(imgs)
-            scores, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
+            decoder_output, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
 
             # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
             targets = caps_sorted[:, 1:]
 
             # Remove timesteps that we didn't decode at, or are pads
             # pack_padded_sequence is an easy trick to do this
-            scores_copy = scores.clone()
-            scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
+            decoder_output_copy = decoder_output.clone()
+            decoder_output = pack_padded_sequence(decoder_output, decode_lengths, batch_first=True)
             targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
-
+            # Calculate loss
             if argParser.model == 'Continuous':
                 targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-                preds = scores.data
+                preds = decoder_output.data #continuous model outputs prediction vector directly
                 if argParser.normalizeEmb:
                     targets = torch.nn.functional.normalize(targets, p=2, dim=1)
                     preds = torch.nn.functional.normalize(preds, p=2, dim=1)
+                loss = criterion(preds, targets)
 
             elif argParser.model == 'Softmax':
-                # Not really preds, as they are still scores, highest prob prediction is
-                # done in the pytorch cross entropy function but I'll put preds to make
-                # it inline with the continuous model...
-                preds  = scores.data
+                scores  = decoder_output.data #softmax model outputs scores o probability
                 targets = targets.data
-
-
-            # Calculate loss
-            loss = criterion(preds, targets)
+                loss = criterion(scores, targets)
 
 
             # Add doubly stochastic attention regularization
@@ -148,12 +143,12 @@ def validate(argParser, idx2word, val_loader, encoder, decoder, criterion):
             if argParser.model == 'Continuous':
               # Again, scores are the actual predicted embeddings the name is just to
               # keep inline with the softmax model... Not the best
-              batch_hypotheses = generatePredictedCaptions(scores_copy, decode_lengths, embeddings, idx2word)
+              batch_hypotheses = generatePredictedCaptions(decoder_output_copy, decode_lengths, embeddings, idx2word)
               hypotheses.extend(batch_hypotheses)
 
 
             elif argParser.model == 'Softmax':
-              _, preds = torch.max(scores_copy, dim=2)
+              _, preds = torch.max(decoder_output_copy, dim=2)
               preds = preds.tolist()
               temp_preds = list()
               for j, p in enumerate(preds):
@@ -180,7 +175,7 @@ def validate(argParser, idx2word, val_loader, encoder, decoder, criterion):
 
 
 
-def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch):
+def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, idx2word, word_map):
     """
     Performs one epoch's training.
     :param train_loader: DataLoader for training data
@@ -214,34 +209,30 @@ def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimize
 
         # Forward prop.
         imgs = encoder(imgs)
-        scores, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
+        decoder_output, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
 
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         targets = caps_sorted[:, 1:]
 
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this
-        scores = pack_padded_sequence(scores, decode_lengths, batch_first=True)
+        decoder_output = pack_padded_sequence(decoder_output, decode_lengths, batch_first=True)
         targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
-
+        # Calculate loss
         if argParser.model == 'Continuous':
             targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-            preds = scores.data
+            preds = decoder_output.data #continuous model outputs prediction vector directly
             if argParser.normalizeEmb:
                 targets = torch.nn.functional.normalize(targets, p=2, dim=1)
                 preds = torch.nn.functional.normalize(preds, p=2, dim=1)
+            loss = criterion(preds, targets)
 
         elif argParser.model == 'Softmax':
-            # Not really preds, as they are still scores, highest prob prediction is
-            # done in the pytorch cross entropy function but I'll put preds to make
-            # it inline with the continuous model...
-            preds  = scores.data
+            scores  = decoder_output.data #softmax model outputs scores o probability
             targets = targets.data
+            loss = criterion(scores, targets)
 
-
-        # Calculate loss
-        loss = criterion(preds, targets)
 
         # Add doubly stochastic attention regularization
         loss += argParser.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
@@ -290,17 +281,19 @@ def main():
 
     argParser = get_args()
 
-    os.mkdir('../Experiments/' + argParser.model_name)
+    if not os.path.isdir('../Experiments/' + argParser.model_name):
+        os.mkdir('../Experiments/' + argParser.model_name)
 
     trainingEnvironment = TrainingEnvironment(argParser)
 
-    encoder, decoder, criterion, embeddings, word_map, encoder_optimizer, decoder_optimizer = setupModel(argParser)
+    encoder, decoder, criterion, embeddings, word_map, encoder_optimizer, decoder_optimizer, idx2word, word2idx = setupModel(argParser)
+    embeddings = embeddings.to(device)
 
     # Create data loaders
     trainLoader, valLoader = setupDataLoaders(argParser)
 
     # Load word <-> embeddings matrix index correspondence dictionaries
-    idx2word, word2idx = loadWordIndexDicts(argParser)
+#    idx2word, word2idx = loadWordIndexDicts(argParser)
 
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
@@ -308,9 +301,9 @@ def main():
     for epoch in range(trainingEnvironment.start_epoch, trainingEnvironment.epochs):
         # Decay learning rate if there is no improvement for "decay_LR_epoch_threshold" consecutive epochs,
         #  and terminate training after minimum LR has been achieved and  "early_stop_epoch_threshold" epochs without improvement
-        if epochs_since_improvement == argParser.early_stop_epoch_threshold:
+        if trainingEnvironment.epochs_since_improvement == argParser.early_stop_epoch_threshold:
             break
-        if epochs_since_improvement >= argParser.decay_LR_epoch_threshold and trainingEnvironment.current_lr > argParser.lr_threshold:
+        if trainingEnvironment.epochs_since_improvement >= argParser.decay_LR_epoch_threshold and trainingEnvironment.current_lr > argParser.lr_threshold:
             trainingEnvironment.current_lr = adjust_learning_rate(decoder_optimizer, 0.5)
             if argParser.fine_tune_encoder:
                 adjust_learning_rate(encoder_optimizer, 0.5)
@@ -322,13 +315,18 @@ def main():
               criterion=criterion,
               encoder_optimizer=encoder_optimizer,
               decoder_optimizer=decoder_optimizer,
-              epoch=epoch)
+              epoch=epoch,
+              idx2word=idx2word,
+              word_map=word_map)
 
         # One epoch's validation
-        references, hypotheses, recent_loss = validate(argParser, idx2word, val_loader=valLoader,
+        references, hypotheses, recent_loss = validate(argParser,val_loader=valLoader,
                                 encoder=encoder,
                                 decoder=decoder,
-                                criterion=criterion)
+                                criterion=criterion,
+                                idx2word=idx2word,
+                                word_map=word_map,
+                                embeddings=embeddings)
 
         # nlgeval = NLGEval()
         metrics_dict = nlgeval.compute_metrics(references, hypotheses)
@@ -343,20 +341,20 @@ def main():
         recent_bleu4 = metrics_dict['Bleu_4']
 
         # Check if there was an improvement
-        is_best = recent_loss < best_loss
+        is_best = recent_loss < trainingEnvironment.best_loss
 
-        best_loss = min(recent_loss, best_loss)
+        trainingEnvironment.best_loss = min(recent_loss, trainingEnvironment.best_loss)
 
-        print("Best BLEU: ", best_bleu4)
+        print("Best BLEU: ", trainingEnvironment.best_bleu4)
         if not is_best:
-            epochs_since_improvement += 1
-            print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
+            trainingEnvironment.epochs_since_improvement += 1
+            print("\nEpochs since last improvement: %d\n" % (trainingEnvironment.epochs_since_improvement,))
         else:
-            epochs_since_improvement = 0
+            trainingEnvironment.epochs_since_improvement = 0
 
         # Save checkpoint
-        save_checkpoint(argParser.model_name, epoch, epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
-                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict, best_loss)
+        save_checkpoint(argParser.model_name, epoch, trainingEnvironment.epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
+                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict, trainingEnvironment.best_loss)
 
 
 

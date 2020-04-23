@@ -13,7 +13,7 @@ class DecoderWithAttention(nn.Module):
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding,encoder_dim=2048,
                  dropout=0.5, use_tf_as_input = 0):
-        
+
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -80,7 +80,7 @@ class DecoderWithAttention(nn.Module):
         c = self.init_c(mean_encoder_out)
         return h, c
 
-    def set_teacher_forcing_usage(value):
+    def set_teacher_forcing_usage(self, value):
         self.use_tf_as_input = value
 
 
@@ -135,16 +135,24 @@ class DecoderWithAttention(nn.Module):
                                                                 h[:batch_size_t])
             gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
             attention_weighted_encoding = gate * attention_weighted_encoding
-            print(predictions.shape)
+#            print(predictions.shape)
             h, c = self.decode_step(
-                torch.cat([input, attention_weighted_encoding], dim=1),
+                torch.cat([input[:batch_size_t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
             preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha
 
 
-            input =  (1 - self.use_tf_as_input) * self.embedding(preds) + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
+            if self.use_tf_as_input > 0:
+                if t <= max(decode_lengths) -1 :
+                    input = embeddings[:batch_size_t, t+1, :]
+#                print("TF")
+            else:
+                _, preds = torch.max(preds, dim=1)
+                #print(preds)
+                input = self.embedding(preds)
+#            input =  (1 - self.use_tf_as_input) * self.embedding(preds) + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
 
             #exit(1)
 #         exit(1)

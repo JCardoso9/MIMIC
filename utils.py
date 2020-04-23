@@ -150,16 +150,15 @@ def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder
              'encoder_optimizer': encoder_optimizer,
              'decoder_optimizer': decoder_optimizer,
              'metrics_dict': metrics_dict,
-             'best_loss:':best_loss}
+             'best_loss':best_loss}
 
-    filename = 'SavedModels/checkpoint_' + modelName + '.pth.tar'
+    filename =  '../Experiments/' + modelName + '/checkpoint.pth.tar'
     torch.save(state, filename)
-    # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
+    # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse c$
     if is_best:
-        torch.save(state, 'SavedModels/BEST_' + modelName + '.pth.tar')
-        
-        
-        
+        torch.save(state, '../Experiments/' + modelName + '/BEST.pth.tar')
+
+
 def plotLosses(trainLossesPath, valLossesPath):
   trainLosses = []
   valLosses = []
