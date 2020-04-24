@@ -35,7 +35,7 @@ def findClosestWord(continuousOutput, embeddings, idx2word):
   word_index = torch.argmax(similarity_matrix)
 
   closestNeighbour = idx2word[str(word_index.item())]
-  return closestNeighbour
+  return closestNeighbour, word_index
 
 
 
@@ -44,10 +44,10 @@ def generatePredictedCaptions(predEmbeddings, decode_lengths, embeddings, idx2wo
   batch_size = predEmbeddings.shape[0]
   captions = []
   for captionNr in range(batch_size):
-    caption = findClosestWord(predEmbeddings[captionNr, 0, :].data, embeddings, idx2word) # First wo$
+    caption, _ = findClosestWord(predEmbeddings[captionNr, 0, :].data, embeddings, idx2word) # First wo$
 
     for predictedWordEmbedding in predEmbeddings[captionNr,1:decode_lengths[captionNr], :]:
-      word = findClosestWord(predictedWordEmbedding.data, embeddings, idx2word)
+      word, _ = findClosestWord(predictedWordEmbedding.data, embeddings, idx2word)
       if word == '.':
         caption += word
       else:

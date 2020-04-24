@@ -1,5 +1,6 @@
-import json
 import torch
+import random
+
 from torch import nn
 import torchvision
 from Attention import Attention
@@ -7,14 +8,14 @@ from Attention import Attention
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-class ContinuousOutputDecoderWithAttention(nn.Module):
+class DecoderWithAttention(nn.Module):
     """
-    Decoder with continuous Outputs.
+    Decoder.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
-                 dropout=0.5, use_tf_as_input = 1):
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding,encoder_dim=2048,
+                 dropout=0.5, scheduled_sampling_prob = 0.1):
+
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -23,7 +24,7 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(ContinuousOutputDecoderWithAttention, self).__init__()
+        super(DecoderWithAttention, self).__init__()
 
         self.encoder_dim = encoder_dim
         self.attention_dim = attention_dim
@@ -32,7 +33,8 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         self.vocab_size = vocab_size
         self.dropout = dropout
         self.sos_embedding = sos_embedding
-        self.use_tf_as_input = use_tf_as_input 
+        self.scheduled_sampling_prob = scheduled_sampling_prob
+
 
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
 
@@ -43,7 +45,7 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         self.init_c = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial cell state of LSTMCell
         self.f_beta = nn.Linear(decoder_dim, encoder_dim)  # linear layer to create a sigmoid-activated gate
         self.sigmoid = nn.Sigmoid()
-        self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs
+        self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
         self.init_weights()  # initialize some layers with the uniform distribution
 
     def init_weights(self):
@@ -80,11 +82,12 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         c = self.init_c(mean_encoder_out)
         return h, c
 
-    def set_teacher_forcing_usage(self, value):
-        self.use_tf_as_input = value
+    def set_scheduled_sampling_prob(self, value):
+        self.scheduled_sampling_prob = value
 
-    def set_scheduled_sampling(self, value):
-        self.schedule_sampling_prob = value
+    def should_use_prev_output():
+        return random.random() < self.scheduled_sampling_prob
+
 
     def forward(self, encoder_out, encoded_captions, caption_lengths):
         """
@@ -104,6 +107,10 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         num_pixels = encoder_out.size(1)
 
         # Sort input data by decreasing lengths; why? apparent below
+        # caption_lengths, sort_ind = caption_lengths.squeeze(1).sort(dim=0, descending=True)
+        # encoder_out = encoder_out[sort_ind]
+        # encoded_captions = encoded_captions[sort_ind]
+
         caption_lengths, sort_ind = caption_lengths.sort(dim=0, descending=True)
         encoder_out = encoder_out[sort_ind]
         encoded_captions = encoded_captions[sort_ind]
@@ -119,43 +126,39 @@ class ContinuousOutputDecoderWithAttention(nn.Module):
         decode_lengths = (caption_lengths - 1).tolist()
 
         # Create tensors to hold word predicion scores and alphas
-        predictions = torch.zeros(batch_size, max(decode_lengths), self.embed_dim).to(device)
+        predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
         input = self.sos_embedding.expand(batch_size, 200).to(device)
+
         # At each time-step, decode by
-	        # attention-weighing the encoder's output based on the decoder's previous hidden state output
+        # attention-weighing the encoder's output based on the decoder's previous hidden state output
         # then generate a new word in the decoder with the previous word and the attention weighted encoding
         for t in range(max(decode_lengths)):
             batch_size_t = sum([l > t for l in decode_lengths])
             attention_weighted_encoding, alpha = self.attention(encoder_out[:batch_size_t],
                                                                 h[:batch_size_t])
-#            gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
-#            attention_weighted_encoding = gate * attention_weighted_encoding
+            gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
+            attention_weighted_encoding = gate * attention_weighted_encoding
+#            print(predictions.shape)
             h, c = self.decode_step(
                 torch.cat([input[:batch_size_t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
-            preds = self.fc(self.dropout(h))  # (batch_size_t, embed_dim)
+            preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha
 
-            if self.use_tf_as_input > 0:
+
+            if not should_use_prev_output():
                 if t <= max(decode_lengths) -1 :
                     input = embeddings[:batch_size_t, t+1, :]
 #                print("TF")
             else:
-                cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-                similarity_matrix = cos(preds.unsqueeze(0), embeddings)
+                _, preds = torch.max(preds, dim=1)
+                #print(preds)
+                input = self.embedding(preds)
+#            input =  (1 - self.use_tf_as_input) * self.embedding(preds) + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
 
-                word_index = torch.argmax(similarity_matrix)
-                print(word_index)
-
-
-                #_, indexes = findClosestWord(preds, self.embedding, idx2word)
-                #preds = self.embedding(indexes)
-
-
-                #input =  torch.nn.functional.normalize(preds, p=2, dim=1)
-            #input =  (1 - self.use_tf_as_input) * preds + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
-
+            #exit(1)
+#         exit(1)
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind

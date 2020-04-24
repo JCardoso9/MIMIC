@@ -35,8 +35,8 @@ import torchvision
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from torch.autograd import Variable
-from torch.nn.utils.rnn import pack_padded_sequence
-
+frsom torch.nn.utils.rnn import pack_padded_sequence
+as
 from nlgeval import NLGEval
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
