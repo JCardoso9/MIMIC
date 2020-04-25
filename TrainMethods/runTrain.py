@@ -6,11 +6,12 @@ from setupEnvironment import *
 from argParser import *
 from TrainingEnvironment import *
 from generalUtilities import *
+from train import *
+from val import  *
 
 import torch
 import torch.backends.cudnn as cudnn
 
-import time
 from datetime import datetime
 
 from nlgeval import NLGEval
@@ -30,13 +31,10 @@ def main():
 
     trainingEnvironment = TrainingEnvironment(argParser)
 
-    encoder, decoder, criterion, embeddings, word_map, encoder_optimizer, decoder_optimizer, idx2word, word2idx = setupModel(argParser)
-    embeddings = embeddings.to(device)
+    encoder, decoder, criterion, embeddings, encoder_optimizer, decoder_optimizer, idx2word = setupModel(argParser)
 
     # Create data loaders
     trainLoader, valLoader = setupDataLoaders(argParser)
-
-    # Load word <-> embeddings matrix index correspondence dictionaries
 
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
@@ -58,9 +56,7 @@ def main():
               criterion=criterion,
               encoder_optimizer=encoder_optimizer,
               decoder_optimizer=decoder_optimizer,
-              epoch=epoch,
-              idx2word=idx2word,
-              word_map=word_map)
+              epoch=epoch)
 
         # One epoch's validation
         references, hypotheses, recent_loss = validate(argParser,val_loader=valLoader,
@@ -68,7 +64,6 @@ def main():
                                 decoder=decoder,
                                 criterion=criterion,
                                 idx2word=idx2word,
-                                word_map=word_map,
                                 embeddings=embeddings)
 
         # nlgeval = NLGEval()

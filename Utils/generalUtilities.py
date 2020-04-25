@@ -1,3 +1,6 @@
+import torch
+
+
 def writeLossToFile(loss, path):
   """
     Write loss of the curren batch to a log file
@@ -8,7 +11,7 @@ def writeLossToFile(loss, path):
     file.write(str(loss) + '\n')
 
 
-   
+
 def clip_gradient(optimizer, grad_clip):
     """
     Clips gradients computed during backpropagation to avoid explosion of gradients.
@@ -81,7 +84,7 @@ def adjust_learning_rate(optimizer, shrink_factor):
     print("The new learning rate is %f\n" % (optimizer.param_groups[0]['lr'],))
     return optimizer.param_groups[0]['lr']
 
-def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,$
+def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer, decoder_optimizer,
                     bleu4, is_best, metrics_dict, best_loss):
     """
     Saves model checkpoint.

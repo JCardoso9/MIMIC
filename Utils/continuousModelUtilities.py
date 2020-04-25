@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 def getEmbeddingsOfTargets(targets, idx2word, wordMap):
   """
     Creates tensor with the embeddings of the words present in the previously packed target reports

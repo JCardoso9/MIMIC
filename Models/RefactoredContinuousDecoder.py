@@ -1,14 +1,15 @@
-import json
+import json, random
 import torch
 from torch import nn
 import torchvision
 from Attention import Attention
+from BaseDecoderWAttention import *
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class RefactoredContinuousDecoder(nn.Module):
+class RefactoredContinuousDecoder(BaseDecoderWAttention):
     """
     Decoder with continuous Outputs.
     """
@@ -23,10 +24,13 @@ class RefactoredContinuousDecoder(nn.Module):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(RefactoredContinuousDecoder, self).__init__()
+        super(RefactoredContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.1)
 
         self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs
         self.init_weights()  # initialize some layers with the uniform distribution
+
+#        self.cos  = nn.CosineSimilarity(dim=1, eps=1e-6)
 
     def forward(self, encoder_out, encoded_captions, caption_lengths):
         """
@@ -64,6 +68,8 @@ class RefactoredContinuousDecoder(nn.Module):
         predictions = torch.zeros(batch_size, max(decode_lengths), self.embed_dim).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
+
+
         input = self.sos_embedding.expand(batch_size, 200).to(device)
         # At each time-step, decode by
 	        # attention-weighing the encoder's output based on the decoder's previous hidden state output
@@ -85,18 +91,23 @@ class RefactoredContinuousDecoder(nn.Module):
             # When not using teacher forcing or with scheduled sampling prob
             # use the embedding of the nearest neighbour word with relation
             # to the previous generated embedding
-            if self.use_tf_as_input == 0 or random.random() < self.scheduled_sampling_prob:
-                cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-                similarity_matrix = cos(preds.unsqueeze(0), embeddings)
+            if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
+                similarity_matrix = torch.mm(preds, self.embedding.weight.T)
+ #               print(preds.shape)
+  #              print(preds.unsqueeze(0).shape)
+   #             print(self.embedding.weight.T.shape)
+      #          similarity_matrix = self.cos(preds, self.embedding.weight.T)
+    #            print(similarity_matrix.shape)
 
-                word_index = torch.argmax(similarity_matrix)
-                print(word_index)
+                word_index = torch.argmax(similarity_matrix, dim=1)
+     #           print("WI: " , word_index.shape)
 
-                _, indexes = findClosestWord(preds, self.embedding, idx2word)
-                preds = self.embedding(indexes)
+                #_, indexes = findClosestWord(preds, self.embedding, idx2word)
+                preds = self.embedding(word_index)
 
             # Else, use teacher forcing and provide words from reference
             else:
+                #print("No tf")
                 if t <= max(decode_lengths) -1 :
                     input = embeddings[:batch_size_t, t+1, :]
 

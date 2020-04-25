@@ -16,6 +16,9 @@ from datetime import datetime
 from nlgeval import NLGEval
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def main():
   """
     Performs testing on the trained model.
@@ -29,8 +32,7 @@ def main():
   # Create NlG metrics evaluator
   nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
-  encoder, decoder, criterion, embeddings, word_map, _, _ , idx2word, word2idx= setupModel(argParser)
-  embeddings = embeddings.to(device)
+  encoder, decoder, criterion, embeddings,  _, _ , idx2word = setupModel(argParser)
 
   # Create data loaders
   testLoader, _ = setupDataLoaders(argParser)
@@ -42,7 +44,6 @@ def main():
                                 decoder=decoder,
                                 criterion=criterion,
                                 idx2word=idx2word,
-                                word_map=word_map,
                                 embeddings=embeddings)
 
 

@@ -1,14 +1,15 @@
-import json
+import json, random
+
 import torch
 from torch import nn
 import torchvision
 from Attention import Attention
-
+from BaseDecoderWAttention import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class RefactoredSoftmaxDecoder(nn.Module):
+class RefactoredSoftmaxDecoder(BaseDecoderWAttention):
     """
     Decoder with continuous Outputs.
     """
@@ -23,7 +24,8 @@ class RefactoredSoftmaxDecoder(nn.Module):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(RefactoredSoftmaxDecoder, self).__init__()
+        super(RefactoredSoftmaxDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.1)
 
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
         self.init_weights()  # initialize some layers with the uniform distribution
@@ -85,7 +87,8 @@ class RefactoredSoftmaxDecoder(nn.Module):
 
             # When not using teacher forcing or with scheduled sampling prob
             # use the embedding for the previous generated word
-            if self.use_tf_as_input == 0 or random.random() < self.scheduled_sampling_prob:
+            if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
+                #print("No Tf")
                 _, preds = torch.max(preds, dim=1)
                 #print(preds)
                 input = self.embedding(preds)

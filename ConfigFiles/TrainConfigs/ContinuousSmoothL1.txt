@@ -1,9 +1,9 @@
 --runType
 Training
 --model
-Softmax
+Continuous
 --model_name
-Softmax
+ContinuousSmoothL1
 --batch_size
 16
 --word2idxPath
@@ -25,7 +25,7 @@ Softmax
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMIC.pkl
 --loss
-CrossEntropy
+SmoothL1
 --attention_dim
 512
 --decoder_dim
@@ -50,3 +50,9 @@ True
 5.
 --alpha_c
 1.
+--use_tf_as_input
+1
+--early_stop_epoch_threshold
+5
+--decay_LR_epoch_threshold
+3

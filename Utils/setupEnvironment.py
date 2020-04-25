@@ -5,10 +5,10 @@ sys.path.append('../Models/')
 sys.path.append('../Utils/')
 sys.path.append('../')
 
-from encoder import Encoder
+from Encoder import Encoder
 from Attention import *
-from DecoderWAttention import *
-from ContinuousOutputDecoderWithAttention import *
+from RefactoredSoftmaxDecoder import *
+from RefactoredContinuousDecoder import *
 from XRayDataset import *
 from TrainingEnvironment import *
 from losses import *
@@ -30,6 +30,8 @@ import pickle
 
 import argparse
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def setupModel(args):
   '''
@@ -40,27 +42,32 @@ def setupModel(args):
 
   # Load embeddings from disk
   word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk(args.embeddingsPath, args.normalizeEmb)
-  
+  embeddings = embeddings.to(device)
+
   idx2word, word2idx = loadWordIndexDicts(args)
 
   # Create adequate model
   if (args.model == 'Continuous'):
-    decoder = ContinuousOutputDecoderWithAttention(attention_dim=args.attention_dim,
+    decoder = RefactoredContinuousDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
                                     sos_embedding = embeddings[word2idx['<sos>']],
                                     dropout=args.dropout,
-                                    use_tf_as_input = args.use_tf_as_input)
+                                    use_tf_as_input = args.use_tf_as_input,
+                                    use_scheduled_sampling=args.use_scheduled_sampling,
+                                    scheduled_sampling_prob=args.scheduled_sampling_prob)
 
   elif (args.model == 'Softmax'):
-    decoder = DecoderWithAttention(attention_dim=args.attention_dim,
+    decoder = RefactoredSoftmaxDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
                                     sos_embedding = embeddings[word2idx['<sos>']],
                                     dropout=args.dropout,
-                                    use_tf_as_input = args.use_tf_as_input)
+                                    use_tf_as_input = args.use_tf_as_input,
+                                    use_scheduled_sampling=args.use_scheduled_sampling,
+                                    scheduled_sampling_prob=args.scheduled_sampling_prob)
 
 
 
@@ -112,7 +119,7 @@ def setupModel(args):
   elif (args.loss == 'TripleMarginLoss'):
     criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)
 
-  return encoder, decoder, criterion, embeddings, word_map, encoder_optimizer, decoder_optimizer, idx2word, word2idx
+  return encoder, decoder, criterion, embeddings, encoder_optimizer, decoder_optimizer, idx2word
 
 
 

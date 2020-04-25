@@ -1,12 +1,13 @@
+import sys
 sys.path.append('../Utils/')
 
-from generalUtilies import *
+from generalUtilities import *
 #from continuousModelUtilities import *
 
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence
 import torch.nn as nn
-
+import time
 
 
 
@@ -14,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # REmove id2word and word_map
 
-def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch, idx2word, word_map):
+def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch):
     """
     Performs one epoch's training.
     :param train_loader: DataLoader for training data
@@ -61,7 +62,7 @@ def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimize
         # Calculate loss
         if argParser.model == 'Continuous':
             #targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-            targets = decoder.embedding(targets)
+            targets = decoder.embedding(targets.data)
             preds = decoder_output.data #continuous model outputs prediction vector directly
             if argParser.normalizeEmb:
                 targets = nn.functional.normalize(targets, p=2, dim=1)

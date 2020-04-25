@@ -3,7 +3,7 @@ Training
 --model
 Softmax
 --model_name
-Softmax
+SoftmaxTest
 --batch_size
 16
 --word2idxPath
@@ -11,11 +11,11 @@ Softmax
 --idx2wordPath
 /home/jcardoso/MIMIC/idx2word.json
 --encodedTrainCaptionsPath
-/home/jcardoso/MIMIC/encodedTrainCaptions.json
+/home/jcardoso/MIMIC/encodedValCaptions.json
 --encodedTrainCaptionsLengthsPath
-/home/jcardoso/MIMIC/encodedTrainCaptionsLengths.json
+/home/jcardoso/MIMIC/encodedValCaptionsLengths.json
 --trainImgsPath
-/home/jcardoso/MIMIC/Train
+/home/jcardoso/MIMIC/Val
 --encodedValCaptionsPath
 /home/jcardoso/MIMIC/encodedValCaptions.json
 --encodedValCaptionsLengthsPath

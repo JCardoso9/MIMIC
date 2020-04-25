@@ -12,7 +12,7 @@ import torch.nn as nn
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DISABLE_TEACHER_FORCING = 0
 
-def test(argParser,  testLoader, encoder, decoder, criterion, idx2word, word_map, embeddings):
+def test(argParser,  testLoader, encoder, decoder, criterion, idx2word, embeddings):
     """
     Performs testing for the pretrained model
     :param word_map: dictionary with word -> embedding correspondence

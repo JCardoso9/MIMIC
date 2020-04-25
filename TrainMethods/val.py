@@ -1,18 +1,19 @@
 import sys
 sys.path.append('../Utils/')
 
-from generalUtilies import *
+from generalUtilities import *
 from continuousModelUtilities import *
 
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence
 import torch.nn as nn
+import time
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DISABLE_TEACHER_FORCING = 0
 
 
-def validate(argParser, val_loader, encoder, decoder, criterion, idx2word, word_map, embeddings):
+def validate(argParser, val_loader, encoder, decoder, criterion, idx2word, embeddings):
     """
     Performs one epoch's validation.
     :param val_loader: DataLoader for validation data.
@@ -65,7 +66,7 @@ def validate(argParser, val_loader, encoder, decoder, criterion, idx2word, word_
             # Calculate loss
             if argParser.model == 'Continuous':
                 #targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-                targets = decoder.embedding(targets)
+                targets = decoder.embedding(targets.data)
                 preds = decoder_output.data #continuous model outputs prediction vector directly
                 if argParser.normalizeEmb:
                     targets = torch.nn.functional.normalize(targets, p=2, dim=1)

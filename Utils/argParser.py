@@ -113,9 +113,11 @@ def get_args():
     parser.add_argument('--decay_LR_epoch_threshold', type=int, default=3,
                         help='Number of epochs without improvement which incurs a decay in learning rate')
 
+    parser.add_argument('--use_scheduled_sampling', type=bool, default=False,
+                        help='Use scheduled sampling during training?')
 
-
-
+    parser.add_argument('--scheduled_sampling_prob', type=float, default=.1,
+                        help='probability to sample from previous decoder output')
 
 
 

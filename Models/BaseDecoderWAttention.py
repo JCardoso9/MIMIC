@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torchvision
 from Attention import Attention
-
+from abc import ABC, abstractmethod
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
