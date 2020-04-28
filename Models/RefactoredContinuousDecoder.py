@@ -92,22 +92,25 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
             # use the embedding of the nearest neighbour word with relation
             # to the previous generated embedding
             if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
+                preds =  torch.nn.functional.normalize(preds, p=2, dim=1)
                 similarity_matrix = torch.mm(preds, self.embedding.weight.T)
  #               print(preds.shape)
   #              print(preds.unsqueeze(0).shape)
    #             print(self.embedding.weight.T.shape)
       #          similarity_matrix = self.cos(preds, self.embedding.weight.T)
-    #            print(similarity_matrix.shape)
+ #               print(similarity_matrix.shape)
 
                 word_index = torch.argmax(similarity_matrix, dim=1)
+
+#                print(torch.topk(similarity_matrix,3, dim=1))
      #           print("WI: " , word_index.shape)
 
                 #_, indexes = findClosestWord(preds, self.embedding, idx2word)
-                preds = self.embedding(word_index)
+                input = self.embedding(word_index)
 
             # Else, use teacher forcing and provide words from reference
             else:
-                #print("No tf")
+                #print(" tf")
                 if t <= max(decode_lengths) -1 :
                     input = embeddings[:batch_size_t, t+1, :]
 

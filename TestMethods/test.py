@@ -1,13 +1,13 @@
 import sys
 sys.path.append('../Utils/')
 
-from generalUtilies import *
+from generalUtilities import *
 from continuousModelUtilities import *
 
 import torch
 from torch.nn.utils.rnn import pack_padded_sequence
 import torch.nn as nn
-
+import time
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DISABLE_TEACHER_FORCING = 0
@@ -68,7 +68,7 @@ def test(argParser,  testLoader, encoder, decoder, criterion, idx2word, embeddin
             # Calculate loss
             if argParser.model == 'Continuous':
                 #targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-                targets = decoder.embedding(targets)
+                targets = decoder.embedding(targets.data)
                 preds = decoder_output.data #continuous model outputs prediction vector directly
                 if argParser.normalizeEmb:
                     targets = torch.nn.functional.normalize(targets, p=2, dim=1)
@@ -130,8 +130,8 @@ def test(argParser,  testLoader, encoder, decoder, criterion, idx2word, embeddin
 
 
 #            print("REFS:", references[0])
-            print("HIPS: ", hypotheses)
-            break
+#            print("HIPS: ", hypotheses)
+ #           break
             assert len(references[0]) == len(hypotheses)
 
 
