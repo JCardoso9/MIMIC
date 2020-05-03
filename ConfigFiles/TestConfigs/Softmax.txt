@@ -1,7 +1,7 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso/MIMIC/TrainMethods/softmax5k26marco.pth.tar
+/home/jcardoso//MIMIC/Experiments/Softmax/BEST.pth.tar
 --model
 Softmax
 --model_name
@@ -48,7 +48,3 @@ True
 1.
 --use_tf_as_input
 0
---early_stop_epoch_threshold
-5
---decay_LR_epoch_threshold
-3

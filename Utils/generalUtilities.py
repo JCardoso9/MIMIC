@@ -1,5 +1,5 @@
 import torch
-
+import os
 
 def writeLossToFile(loss, path):
   """
@@ -69,6 +69,31 @@ def decodeCaption(caption, idx2word):
           decodedCaption += ' ' + word
 
     return decodedCaption
+
+def decodeReference(caption, idx2word, word2idx):
+    caption = [w for w in caption if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
+    decodedCaption = idx2word[str(caption[0])]
+
+    for index in caption[1:-1]:
+      word = idx2word[str(index)]
+      if word == '.':
+          decodedCaption += word
+      else:
+          decodedCaption += ' ' + word
+
+    return decodedCaption
+
+
+
+def unifyCaption(listCaption):
+    unifiedCaption = ''
+    for word in listCaption:
+      if word == '.':
+          unifiedCaption += word
+      else:
+          unifiedCaption += ' ' + word
+
+    return unifiedCaption
 
 
 def adjust_learning_rate(optimizer, shrink_factor):

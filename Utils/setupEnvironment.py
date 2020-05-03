@@ -90,6 +90,8 @@ def setupModel(args):
     encoder.eval()
     encoder_optimizer = None
     decoder_optimizer = None
+    enc_scheduler = None
+    dec_scheduler = None
 
   # If training, create optimizers. If necessary, load previous checkpoint.
   # Also check if fine tuning embeddings and/or encoder is necessary
@@ -105,6 +107,8 @@ def setupModel(args):
       decoder_optimizer.load_state_dict(modelInfo['decoder_optimizer'])
       encoder_optimizer.load_state_dict(modelInfo['encoder_optimizer'])
 
+    dec_scheduler = torch.optim.lr_scheduler.StepLR(decoder_optimizer, args.lr_decay_epochs, args.lr_decay)
+    enc_scheduler = torch.optim.lr_scheduler.StepLR(encoder_optimizer, args.lr_decay_epochs, args.lr_decay)
 
   # Create criterion
   if (args.loss == 'CrossEntropy'):
@@ -119,7 +123,7 @@ def setupModel(args):
   elif (args.loss == 'TripleMarginLoss'):
     criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)
 
-  return encoder, decoder, criterion, embeddings, encoder_optimizer, decoder_optimizer, idx2word
+  return encoder, decoder, criterion, embeddings, encoder_optimizer, decoder_optimizer, dec_scheduler, enc_scheduler, idx2word, word2idx
 
 
 
@@ -143,7 +147,7 @@ def setupDataLoaders(args):
   # Create MIMIC dataset loaders
   if (args.runType == "Testing"):
     testLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTestCaptionsPath,
-      args.encodedTestCaptionsLengthsPath, args.testImgsPath, transform), batch_size=args.batch_size, shuffle=True)
+      args.encodedTestCaptionsLengthsPath, args.testImgsPath, transform), batch_size=1, shuffle=True)
 
     return testLoader, None
 
@@ -151,7 +155,7 @@ def setupDataLoaders(args):
     trainLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTrainCaptionsPath,
       args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
     valLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedValCaptionsPath,
-      args.encodedValCaptionsLengthsPath, args.valImgsPath, transform), batch_size=args.batch_size, shuffle=True)
+      args.encodedValCaptionsLengthsPath, args.valImgsPath, transform), batch_size=1, shuffle=True)
 
     return trainLoader, valLoader
 

@@ -3,7 +3,7 @@ Training
 --model
 Softmax
 --model_name
-SoftmaxTest
+SoftmaxSS
 --batch_size
 16
 --word2idxPath
@@ -11,11 +11,11 @@ SoftmaxTest
 --idx2wordPath
 /home/jcardoso/MIMIC/idx2word.json
 --encodedTrainCaptionsPath
-/home/jcardoso/MIMIC/encodedValCaptions.json
+/home/jcardoso/MIMIC/encodedTrainCaptions.json
 --encodedTrainCaptionsLengthsPath
-/home/jcardoso/MIMIC/encodedValCaptionsLengths.json
+/home/jcardoso/MIMIC/encodedTrainCaptionsLengths.json
 --trainImgsPath
-/home/jcardoso/MIMIC/Val
+/home/jcardoso/MIMIC/Train
 --encodedValCaptionsPath
 /home/jcardoso/MIMIC/encodedValCaptions.json
 --encodedValCaptionsLengthsPath
@@ -50,3 +50,7 @@ True
 5.
 --alpha_c
 1.
+--use_scheduled_sampling
+True
+--scheduled_sampling_prob'
+0.2

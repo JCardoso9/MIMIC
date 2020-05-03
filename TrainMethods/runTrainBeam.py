@@ -1,6 +1,7 @@
 
 import sys
 sys.path.append('../Utils/')
+sys.path.append('../TestMethods/')
 
 from setupEnvironment import *
 from argParser import *
@@ -8,6 +9,7 @@ from TrainingEnvironment import *
 from generalUtilities import *
 from train import *
 from val import  *
+from caption import *
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -59,12 +61,14 @@ def main():
               epoch=epoch)
 
         # One epoch's validation
-        references, hypotheses, recent_loss = validate(argParser,val_loader=valLoader,
-                                encoder=encoder,
-                                decoder=decoder,
-                                criterion=criterion,
-                                idx2word=idx2word,
-                                embeddings=embeddings)
+        #references, hypotheses, recent_loss = validate(argParser,val_loader=valLoader,
+        #                        encoder=encoder,
+        #                        decoder=decoder,
+        #                        criterion=criterion,
+        #                        idx2word=idx2word,
+        #                        embeddings=embeddings)
+
+        references, hypotheses = evaluate(argParser, 4, encoder, decoder, valLoader, word2idx, idx2word)
 
         enc_scheduler.step()
         dec_scheduler.step()
@@ -82,9 +86,9 @@ def main():
         recent_bleu4 = metrics_dict['Bleu_4']
 
         # Check if there was an improvement
-        is_best = recent_loss < trainingEnvironment.best_loss
+        is_best = recent_bleu4 > trainingEnvironment.best_bleu4
 
-        trainingEnvironment.best_loss = min(recent_loss, trainingEnvironment.best_loss)
+        trainingEnvironment.best_bleu4 = max(recent_bleu4, trainingEnvironment.best_bleu4)
 
         print("Best BLEU: ", trainingEnvironment.best_bleu4)
         if not is_best:

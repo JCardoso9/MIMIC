@@ -32,6 +32,7 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
 
 #        self.cos  = nn.CosineSimilarity(dim=1, eps=1e-6)
 
+
     def forward(self, encoder_out, encoded_captions, caption_lengths):
         """
         Forward propagation.
@@ -78,8 +79,8 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
             batch_size_t = sum([l > t for l in decode_lengths])
             attention_weighted_encoding, alpha = self.attention(encoder_out[:batch_size_t],
                                                                 h[:batch_size_t])
-#            gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
-#            attention_weighted_encoding = gate * attention_weighted_encoding
+            gate = self.sigmoid(self.f_beta(h[:batch_size_t]))  # gating scalar, (batch_size_t, encoder_dim)
+            attention_weighted_encoding = gate * attention_weighted_encoding
             h, c = self.decode_step(
                 torch.cat([input[:batch_size_t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
@@ -93,6 +94,7 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
             # to the previous generated embedding
             if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
                 preds =  torch.nn.functional.normalize(preds, p=2, dim=1)
+                print(preds)
                 similarity_matrix = torch.mm(preds, self.embedding.weight.T)
  #               print(preds.shape)
   #              print(preds.unsqueeze(0).shape)
@@ -101,7 +103,6 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
  #               print(similarity_matrix.shape)
 
                 word_index = torch.argmax(similarity_matrix, dim=1)
-
 #                print(torch.topk(similarity_matrix,3, dim=1))
      #           print("WI: " , word_index.shape)
 

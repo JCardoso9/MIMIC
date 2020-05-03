@@ -101,10 +101,12 @@ def validate(argParser, val_loader, encoder, decoder, criterion, idx2word, embed
             # references = [[ref1, ref2, ...]], hypotheses = [hyp1, hyp2, ...]
 
             # References
+            #for original_caption in sorted_original_captions:
+                #references[0].append(original_caption)
             temp_refs = []
             caps_sortedList = caps_sorted[:, 1:].tolist()
             for j,refCaption in enumerate(caps_sortedList):
-              temp_refs.append(refCaption[:decode_lengths[j]])
+               temp_refs.append(refCaption[:decode_lengths[j]])
 
 
             for caption in temp_refs:
@@ -132,12 +134,12 @@ def validate(argParser, val_loader, encoder, decoder, criterion, idx2word, embed
 
 
 
-#            print('\nREFS: ',references[0])
-#            print('\nHIPS: ',hypotheses)
+            #print('\nREFS: ',references[0])
+            #print('\nHIPS: ',hypotheses)
 
 
             assert len(references[0]) == len(hypotheses)
- #           break
+            #break
 
 
     path = '../Experiments/'+ argParser.model_name + '/valLosses.txt'

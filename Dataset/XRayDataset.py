@@ -4,6 +4,12 @@ import json
 import os
 from PIL import Image
 import re
+import sys
+sys.path.append('../Utils/')
+
+
+from generalUtilities import *
+
 
 from utils import *
 
@@ -13,7 +19,7 @@ class XRayDataset(Dataset):
 
     
 
-    def __init__(self,word2idx_path,  encodedCaptionsJsonFile, captionsLengthsFile, imgsDir, transform=None, maxSize = 456):
+    def __init__(self,word2idx_path,  encodedCaptionsJsonFile, captionsLengthsFile, imgsDir, transform=None, maxSize = 372):
         """
         Args:
             json_file (string): Path to the json file with captions.
@@ -41,10 +47,10 @@ class XRayDataset(Dataset):
         return len(self.encodedCaptions)
 
     def __getitem__(self, idx):
-        
+
         imgID = self.imgPaths[idx]
         study = re.findall(r"s\d{8}", imgID)[0][1:]
-        
+
         image = Image.open(imgID)
 
         encodedCaptionLength = 0
@@ -52,23 +58,27 @@ class XRayDataset(Dataset):
 
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<sos>'])
-        
+
+        #print(self.encodedCaptionsLength[study])
+        encodedCaptionLength += self.encodedCaptionsLength[study]
+        encodedCaption = self.encodeCaption(self.encodedCaptions[study], encodedCaption)
+
 
         # Reports are comprised of only one setion
-        if self.encodedCaptionsLength[study]['findings'] != 0:
-          encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
-          encodedCaption += self.encodedCaptions[study]['findings']   
+        #if self.encodedCaptionsLength[study]['findings'] != 0:
+          #encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
+          #encodedCaption += self.encodedCaptions[study]['findings']
 
 
 
-        elif self.encodedCaptionsLength[study]['impression'] != 0:
-          encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
-          encodedCaption += self.encodedCaptions[study]['impression']
+        #elif self.encodedCaptionsLength[study]['impression'] != 0:
+          #encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
+          #encodedCaption += self.encodedCaptions[study]['impression']
 
 
-        elif self.encodedCaptionsLength[study]['last_paragraph'] != 0:
-          encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
-          encodedCaption += self.encodedCaptions[study]['last_paragraph']
+        #elif self.encodedCaptionsLength[study]['last_paragraph'] != 0:
+          #encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
+          #encodedCaption += self.encodedCaptions[study]['last_paragraph']
         
         # else:
         #   print("error: no captions")
@@ -98,7 +108,16 @@ class XRayDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return image,  torch.LongTensor(encodedCaption), encodedCaptionLength
+        return image,  torch.LongTensor(encodedCaption), encodedCaptionLength #, unifyCaption(self.encodedCaptions[study])
+
+
+    def encodeCaption(self, caption, encodedCaption):
+        for word in caption:
+            if word in self.word2idx.keys():
+                encodedCaption.append(self.word2idx[word])
+            else:
+                encodedCaption.append(self.word2idx['<unk>'])
+        return encodedCaption
 
 
     def padCaption(self, caption, maxSize, encodedCaptionLength):      

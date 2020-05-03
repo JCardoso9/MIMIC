@@ -1,13 +1,13 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso/MIMIC/Experiments/Continuous/BEST.pth.tar
+/home/jcardoso//MIMIC/Experiments/Softmax/BEST.pth.tar
 --model
-Continuous
+Softmax
 --model_name
-Continuous
+Softmax
 --batch_size
-16
+1
 --word2idxPath
 /home/jcardoso/MIMIC/word2idx.json
 --idx2wordPath
@@ -21,7 +21,7 @@ Continuous
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMIC.pkl
 --loss
-CosineSimilarity
+CrossEntropy
 --attention_dim
 512
 --decoder_dim

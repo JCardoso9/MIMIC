@@ -31,8 +31,7 @@ class TrainingEnvironment:
       self.alpha_c = args.alpha_c
       self.print_freq = args.print_freq
       self.early_stop_epoch_threshold = args.early_stop_epoch_threshold
-      self.decay_LR_epoch_threshold = args.decay_LR_epoch_threshold
- 
+      #self.decay_LR_epoch_threshold = args.decay_LR_epoch_threshold 
 
 
 

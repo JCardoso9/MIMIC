@@ -110,8 +110,11 @@ def get_args():
     parser.add_argument('--early_stop_epoch_threshold', type=int, default=5,
                         help='Number of epochs without improvement which leads to early stop')
 
-    parser.add_argument('--decay_LR_epoch_threshold', type=int, default=3,
-                        help='Number of epochs without improvement which incurs a decay in learning rate')
+    parser.add_argument('--lr_decay', type=float, default=.5,
+                        help='learning rate decay used by scheduler')
+
+    parser.add_argument('--lr_decay_epochs', type=int, default=5,
+                        help='Nr epochs before scheduler lowers learning rate')
 
     parser.add_argument('--use_scheduled_sampling', type=bool, default=False,
                         help='Use scheduled sampling during training?')
