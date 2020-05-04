@@ -56,7 +56,8 @@ def setupModel(args):
                                     dropout=args.dropout,
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
-                                    scheduled_sampling_prob=args.scheduled_sampling_prob)
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
+                                    use_custom_tf=args.use_custom_tf)
 
   elif (args.model == 'Softmax'):
     decoder = RefactoredSoftmaxDecoder(attention_dim=args.attention_dim,
@@ -67,7 +68,7 @@ def setupModel(args):
                                     dropout=args.dropout,
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
-                                    scheduled_sampling_prob=args.scheduled_sampling_prob)
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob)
 
 
 

@@ -15,7 +15,8 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
     """
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.1):
+                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.,
+                 use_custom_tf=False):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -25,8 +26,10 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
         :param dropout: dropout
         """
         super(RefactoredContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.1)
+                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
 
+
+        self.use_custom_tf = use_custom_tf
         self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs
         self.init_weights()  # initialize some layers with the uniform distribution
 
@@ -94,20 +97,15 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
             # to the previous generated embedding
             if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
                 preds =  torch.nn.functional.normalize(preds, p=2, dim=1)
-                print(preds)
+                #print(preds)
                 similarity_matrix = torch.mm(preds, self.embedding.weight.T)
- #               print(preds.shape)
-  #              print(preds.unsqueeze(0).shape)
-   #             print(self.embedding.weight.T.shape)
-      #          similarity_matrix = self.cos(preds, self.embedding.weight.T)
- #               print(similarity_matrix.shape)
 
                 word_index = torch.argmax(similarity_matrix, dim=1)
-#                print(torch.topk(similarity_matrix,3, dim=1))
-     #           print("WI: " , word_index.shape)
 
-                #_, indexes = findClosestWord(preds, self.embedding, idx2word)
                 input = self.embedding(word_index)
+
+                if self.use_custom_tf:
+                    input = ( input + embeddings[:batch_size_t, t+1, :] ) / 2
 
             # Else, use teacher forcing and provide words from reference
             else:

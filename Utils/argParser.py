@@ -119,9 +119,19 @@ def get_args():
     parser.add_argument('--use_scheduled_sampling', type=bool, default=False,
                         help='Use scheduled sampling during training?')
 
-    parser.add_argument('--scheduled_sampling_prob', type=float, default=.1,
-                        help='probability to sample from previous decoder output')
+    parser.add_argument('--initial_scheduled_sampling_prob', type=float, default=.1,
+                        help='initial probability to sample from previous decoder output')
 
+    parser.add_argument('--scheduled_sampling_decay_epochs', type=int, default=5,
+                        help='Nr epochs before probability to sample from previous decoder output is lowered')
+
+
+    parser.add_argument('--rate_change_scheduled_sampling_prob', type=float, default=.05,
+                        help='increment to the probability of sampling from previous decoder output')
+
+
+    parser.add_argument('--use_custom_tf', type=bool, default=False,
+                        help='use custom tf method in continuous model?')
 
 
 

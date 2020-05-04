@@ -41,15 +41,19 @@ def main():
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
 
+    scheduled_sampling_prob = decoder.scheduled_sampling_prob
+
     for epoch in range(trainingEnvironment.start_epoch, trainingEnvironment.epochs):
+
+        if epoch > 1 and argParser.use_scheduled_sampling and epoch % argParser.scheduled_sampling_decay_epochs == 0:
+            scheduled_sampling_prob += argParser.rate_change_scheduled_sampling_prob
+            decoder.set_scheduled_sampling_prob(scheduled_sampling_prob)
+
+
         # Decay learning rate if there is no improvement for "decay_LR_epoch_threshold" consecutive epochs,
         #  and terminate training after minimum LR has been achieved and  "early_stop_epoch_threshold" epochs without improvement
         if trainingEnvironment.epochs_since_improvement == argParser.early_stop_epoch_threshold:
             break
-#        if trainingEnvironment.epochs_since_improvement >= argParser.decay_LR_epoch_threshold and trainingEnvironment.current_lr > argParser.lr_threshold:
-            #trainingEnvironment.current_lr = adjust_learning_rate(decoder_optimizer, 0.5)
-            #if argParser.fine_tune_encoder:
-             #   adjust_learning_rate(encoder_optimizer, 0.5)
 
         # One epoch's training
         train(argParser,train_loader=trainLoader,
@@ -61,13 +65,6 @@ def main():
               epoch=epoch)
 
         # One epoch's validation
-        #references, hypotheses, recent_loss = validate(argParser,val_loader=valLoader,
-        #                        encoder=encoder,
-        #                        decoder=decoder,
-        #                        criterion=criterion,
-        #                        idx2word=idx2word,
-        #                        embeddings=embeddings)
-
         references, hypotheses = evaluate(argParser, 4, encoder, decoder, valLoader, word2idx, idx2word)
 
         enc_scheduler.step()
@@ -83,7 +80,7 @@ def main():
                 file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
             file.write("------------------------------------------\n")
 
-        recent_bleu4 = metrics_dict['Bleu_4']
+        recent_bleu4 = metrics_dict['CIDEr']
 
         # Check if there was an improvement
         is_best = recent_bleu4 > trainingEnvironment.best_bleu4

@@ -11,7 +11,7 @@ sys.path.append('../Utils/')
 from generalUtilities import *
 
 
-from utils import *
+#from utils import *
 
 
 class XRayDataset(Dataset):

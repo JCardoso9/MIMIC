@@ -59,6 +59,9 @@ def evaluate(argParser, beam_size, encoder, decoder, testLoader, word2idx, idx2w
     # TODO: Batched Beam Search
     # Therefore, do not use a batch_size greater than 1 - IMPORTANT!
 
+    decoder.eval()
+    encoder.eval()
+
     # Lists to store references (true captions), and hypothesis (prediction) for each image
     # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
     # references = [[ref1a, ref1b, ref1c], [ref2a, ref2b], ...], hypotheses = [hyp1, hyp2, ...]
