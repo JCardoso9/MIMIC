@@ -4,11 +4,10 @@ sys.path.append('../Dataset/')
 sys.path.append('../Models/')
 sys.path.append('../Utils/')
 
-
-from torchvision.models import densenet161, resnet152, vgg19
+from torchvision.models import densenet161, resnet50, vgg19
 from XRayDataset import *
 from generalUtilities import *
-
+import faiss
 from nlgeval import NLGEval
 
 import torch
@@ -23,15 +22,30 @@ import pickle
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+
+torch.manual_seed(2809)
+torch.backends.cudnn.deterministic = True
+
 # Create NlG metrics evaluator
 nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
 
-#encoder = Encoder()
+class Encoder(nn.Module):
+    def __init__(self, network='resnet50'):
+        super(Encoder, self).__init__()
+        self.network = network
+        if network == 'resnet50':
+            self.net = resnet50(pretrained=True)
+            self.net = nn.Sequential(*list(self.net.children())[:-1])
+            self.dim = 2048
 
-encoder = resnet152(pretrained=True)
-encoder = nn.Sequential(*list(encoder.children())[:-1])
+    def forward(self, x):
+        x = self.net(x)
+        x = x.permute(0, 2, 3, 1)
+        x = x.view(x.size(0), -1, x.size(-1))
+        return x
 
+encoder = Encoder()
 encoder = encoder.to(device)
 encoder.eval()
 
@@ -42,14 +56,14 @@ transform = transforms.Compose([
     ])
 
 
-batch_size = 1
+batch_size = 4
+
 
 trainLoader = DataLoader(XRayDataset('/home/jcardoso/MIMIC/word2idxF.json', '/home/jcardoso/MIMIC/encodedTrainCaptionsF.json',
-      '/home/jcardoso/MIMIC/encodedTrainCaptionsLengthsF.json', '/home/jcardoso/MIMIC/TrainF', transform), batch_size=batch_size, shuffle=True)
+      '/home/jcardoso/MIMIC/encodedTrainCaptionsLengthsF.json', '/home/jcardoso/MIMIC/TrainF',  transform), batch_size=batch_size, shuffle=False)
 
-
-valLoader = DataLoader(XRayDataset('/home/jcardoso/MIMIC/word2idxF.json', '/home/jcardoso/MIMIC/encodedTestCaptionsF.json',
-      '/home/jcardoso/MIMIC/encodedTestCaptionsLengthsF.json', '/home/jcardoso/MIMIC/TestF',  transform), batch_size=batch_size, shuffle=True)
+testLoader = DataLoader(XRayDataset('/home/jcardoso/MIMIC/word2idxF.json', '/home/jcardoso/MIMIC/encodedTestCaptionsF.json',
+      '/home/jcardoso/MIMIC/encodedTestCaptionsLengthsF.json', '/home/jcardoso/MIMIC/TestF',  transform), batch_size=batch_size, shuffle=False)
 
 
 with open('/home/jcardoso/MIMIC/idx2wordF.json') as fp:
@@ -59,71 +73,103 @@ with open('/home/jcardoso/MIMIC/word2idxF.json') as fp:
     word2idx = json.load(fp)
 
 
-train_images_matrix = torch.zeros(len(trainLoader), 2048)
+d = 2048
+index = faiss.IndexFlatIP(d)
+
 train_captions = {}
+
+#with open('train_captionsNN.pkl', 'rb') as file:
+    #train_captions =  pickle.load(file)
+
+
+
 
 
 def generate_train_images_matrix():
-    count = 0
 
+    count = 0
+    rounds = 0
     print("Nr images: ", len(trainLoader))
     for i, (image, caps, caplens) in enumerate(
             tqdm(trainLoader, desc="Creating image matrix: ")):
         image = image.to(device)
         encoder_out = encoder(image)
+        encoder_out = encoder_out.view(batch_size,-1)
 
-        train_images_matrix[i: i+batch_size, :] = encoder_out
-        print(train_images_matrix.shape)
+        encoder_out = torch.nn.functional.normalize(encoder_out, p=2, dim=1)
+        index.add(encoder_out.to("cpu").detach().numpy())
+        encodedCaption = [w for w in caps[0].tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
+#        print(decodeCaption(encodedCaption, idx2word))
+
+#        print("ººººººº")
         for caption in caps:
+#            print("-----------")
             encodedCaption = [w for w in caption.tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
-            train_captions[i] = decodeCaption(encodedCaption, idx2word)
+#            print(decodeCaption(encodedCaption, idx2word))
+            train_captions[count] = decodeCaption(encodedCaption, idx2word)
             count += 1
-        print(train_captions)
-        break
+#        print("~~~~~~~~~~")
+        #print(train_captions)
+#        print("Saved:",train_captions[0])
+        #break
+#        print("final:",train_captions)
+        rounds += 1
+        if rounds > 38000:
+            break
 
-    #with open('train_images_matrix.obj', 'w') as file:
-    #    pickle.dump(train_images_matrix, file)
-    #with  open('train_captions.obj', 'w') as file:
-    #    pickle.dump(train_captions, file)
+    #with open('train_captionsNN.pkl', 'wb') as file:
+        #pickle.dump(train_captions, file)
+    #return index
 
-
+k=1
 
 def calculate_NN():
     references = [[]]
     hypotheses = []
     for i, (image, caps, caplens) in enumerate(
-            tqdm(testLoader, desc="Creating image matrix: ")):
+            tqdm(testLoader, desc="Calculating NN: ")):
         image = image.to(device)
         encoder_out = encoder(image)
+        encoder_out = encoder_out.view(batch_size,-1)
+        encoder_out = torch.nn.functional.normalize(encoder_out, p=2, dim=1)
+        D, I = index.search(encoder_out.to("cpu").detach().numpy(), k)
 
 
         for caption in caps:
             encodedCaption = [w for w in caption.tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
             references[0].append(decodeCaption(encodedCaption, idx2word))
+        #print("\nD:",D)
+        #print("I",I)
+        #print(I.shape)
+        #print(I[0][0])
 
-        #similarity_matrix = torch.mm(img?, train_images_matrix.T)
-        nn_report_index = torch.argmax(similarity_matrix, dim=1)
+        for i in range(batch_size):
+            hypotheses.append(train_captions[I[i][0]])
 
-        hypotheses.append(train_captions[nn_report_index])
+        #break
 
     return references, hypotheses
 
-
-#with open('train_images_matrix.obj', 'r') as file:
-    #train_image_matrix =  pickle.load(file)
-
-#with open('train_captions.obj', 'r') as file:
-    #train_captions =  pickle.load(file)
 
 
 
 generate_train_images_matrix()
 
-#references, hypotheses = calculate_NN()
+references, hypotheses = calculate_NN()
 
-#metrics_dict = nlgeval.compute_metrics(references, hypotheses)
-#print(metrics_dict)
+print(len(references[0]))
 
+print("HYPS:", len(hypotheses))
+
+metrics_dict = nlgeval.compute_metrics(references, hypotheses)
+print(metrics_dict)
+
+with open("AllRefs.txt", 'w+') as file:
+    for reference in references[0]:
+        file.write(reference.strip() + '\n')
+with open("AllPreds.txt", 'w+') as file:
+    for hypothesis in hypotheses:
+        file.write(hypothesis.strip() + '\n')
 #with open("nearestN_TestResults.txt", "w+") as file:
    #for metric in metrics_dict:
       #file.write(metric + ":" + str(metrics_dict[metric]) + "\n")

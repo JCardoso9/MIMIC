@@ -60,24 +60,19 @@ def validate(argParser, val_loader, encoder, decoder, criterion, idx2word, embed
             # Remove timesteps that we didn't decode at, or are pads
             # pack_padded_sequence is an easy trick to do this
             decoder_output_copy = decoder_output.clone()
-            decoder_output = pack_padded_sequence(decoder_output, decode_lengths, batch_first=True)
-            targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
 
-            # Calculate loss
+             # Calculate loss
             if argParser.model == 'Continuous':
-                #targets = getEmbeddingsOfTargets(targets, idx2word, word_map)
-                targets = decoder.embedding(targets.data)
-                preds = decoder_output.data #continuous model outputs prediction vector directly
+                targets = decoder.embedding(targets)
                 if argParser.normalizeEmb:
-                    targets = torch.nn.functional.normalize(targets, p=2, dim=1)
-                    preds = torch.nn.functional.normalize(preds, p=2, dim=1)
-                loss = criterion(preds, targets)
+                    targets = nn.functional.normalize(targets, p=2, dim=1)
+                    preds = nn.functional.normalize(decoder_output, p=2, dim=1)
+                loss = criterion(preds, targets, decode_lengths)
 
             elif argParser.model == 'Softmax':
-                scores  = decoder_output.data #softmax model outputs scores o probability
-                targets = targets.data
-                loss = criterion(scores, targets)
-
+                decoder_output = pack_padded_sequence(decoder_output, decode_lengths, batch_first=True)
+                targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
+                loss = criterion(decoder_output.data, targets.data)
 
             # Add doubly stochastic attention regularization
             loss += argParser.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()

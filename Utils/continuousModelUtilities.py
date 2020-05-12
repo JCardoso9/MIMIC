@@ -51,6 +51,8 @@ def generatePredictedCaptions(predEmbeddings, decode_lengths, embeddings, idx2wo
 
     for predictedWordEmbedding in predEmbeddings[captionNr,1:decode_lengths[captionNr], :]:
       word, _ = findClosestWord(predictedWordEmbedding.data, embeddings, idx2word)
+      if word == '<eoc>':
+          break
       if word == '.':
         caption += word
       else:

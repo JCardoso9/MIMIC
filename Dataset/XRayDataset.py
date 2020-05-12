@@ -101,7 +101,6 @@ class XRayDataset(Dataset):
 
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<eoc>'])
-
         encodedCaption = self.padCaption(torch.LongTensor(encodedCaption), self.maxSize, encodedCaptionLength)
 
 

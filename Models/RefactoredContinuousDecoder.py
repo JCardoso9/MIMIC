@@ -76,7 +76,7 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
 
         input = self.sos_embedding.expand(batch_size, 200).to(device)
         # At each time-step, decode by
-	        # attention-weighing the encoder's output based on the decoder's previous hidden state output
+        # attention-weighing the encoder's output based on the decoder's previous hidden state output
         # then generate a new word in the decoder with the previous word and the attention weighted encoding
         for t in range(max(decode_lengths)):
             batch_size_t = sum([l > t for l in decode_lengths])
@@ -88,6 +88,7 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
                 torch.cat([input[:batch_size_t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
             preds = self.fc(self.dropout(h))  # (batch_size_t, embed_dim)
+            #preds =  torch.nn.functional.normalize(preds, p=2, dim=1)
             predictions[:batch_size_t, t, :] = preds
             alphas[:batch_size_t, t, :] = alpha
 
@@ -101,7 +102,7 @@ class RefactoredContinuousDecoder(BaseDecoderWAttention):
                 similarity_matrix = torch.mm(preds, self.embedding.weight.T)
 
                 word_index = torch.argmax(similarity_matrix, dim=1)
-
+                print(word_index.shape)
                 input = self.embedding(word_index)
 
                 if self.use_custom_tf:

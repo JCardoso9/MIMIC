@@ -61,8 +61,10 @@ def getFilesInDirectory(path):
 def decodeCaption(caption, idx2word):
     decodedCaption = idx2word[str(caption[0])]
 
-    for index in caption[1:-1]:
+    for index in caption[1:]:
       word = idx2word[str(index)]
+      if word == '<eoc>':
+          break
       if word == '.':
           decodedCaption += word
       else:

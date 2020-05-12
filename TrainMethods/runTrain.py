@@ -79,12 +79,12 @@ def main():
                 file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
             file.write("------------------------------------------\n")
 
-        recent_bleu4 = metrics_dict['Bleu_4']
+        recent_bleu4 = metrics_dict['CIDEr']
 
         # Check if there was an improvement
-        is_best = recent_loss < trainingEnvironment.best_loss
+        is_best = recent_bleu4 > trainingEnvironment.best_bleu4
 
-        trainingEnvironment.best_loss = min(recent_loss, trainingEnvironment.best_loss)
+        trainingEnvironment.best_bleu4 = max(recent_bleu4, trainingEnvironment.best_bleu4)
 
         print("Best BLEU: ", trainingEnvironment.best_bleu4)
         if not is_best:

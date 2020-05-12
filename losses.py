@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -18,10 +19,63 @@ class CosineEmbedLoss(nn.Module):
       self.criterion = nn.CosineEmbeddingLoss().to(device)
 
 
-    def forward(self, targets, preds):
-      y = torch.ones(targets.shape[0]).to(device)
-      loss = self.criterion(preds, targets,y)
+    def forward(self, targets, preds, decode_lengths):
+      preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
+      targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
+      y = torch.ones(targets.data.shape[0]).to(device)
+      loss = self.criterion(preds.data, targets.data,y)
       return loss
+
+
+
+class SmoothL1LossWord(nn.Module):
+    '''
+      Uses pytorch's cosine embedding loss. Class created to abstract need of
+      using a y vector.
+    '''
+
+    def __init__(self):
+      super(SmoothL1LossWord, self).__init__()
+      # Loss function
+      self.criterion = nn.SmoothL1Loss().to(device)
+
+
+    def forward(self, targets, preds, decode_lengths):
+      preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
+      targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
+      loss = self.criterion(preds.data, targets.data)
+      return loss
+
+
+
+class SmoothL1LossWordAndSentence(nn.Module):
+    '''
+      Uses pytorch's cosine embedding loss. Class created to abstract need of
+      using a y vector.
+    '''
+
+    def __init__(self, beta=0.5):
+      super(SmoothL1LossWord, self).__init__()
+      # Loss function
+      self.criterion = nn.SmoothL1Loss().to(device)
+      self.beta = 0.5
+
+    def forward(self, targets, preds, decode_lengths):
+
+      word_loss = 0.
+      sentence_loss = 0.
+      batch_size = unpadded.shape[0]
+      unpadded_targets = targets[:,:decode_lengths,:]
+      unpadded_preds = preds[:,:decode_lengths,:]
+#      for sentence_idx in range(batch_size):
+#          word_loss += self.criterion(unpadded_preds[sentence_idx], unpadded_targets[sentence_idx])
+
+#          sentence_loss += self.criterion(torch.mean(unpadded_preds[sentence_idx], dim=0) ,torch.mean(unpadded_targets[sentence_idx],dim=0)
+
+
+
+ #     return 1 - self.beta * (word_loss / batch_size) +  self.beta * (sentence_loss / batch_size)
+      return 1
 
 
 

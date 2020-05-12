@@ -34,7 +34,7 @@ def main():
   # Create NlG metrics evaluator
   nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
-  encoder, decoder, criterion, embeddings,  _, _ , _, _, idx2word = setupModel(argParser)
+  encoder, decoder, criterion, embeddings,  _, _ , _, _, idx2word, word2idx = setupModel(argParser)
 
   # Create data loaders
   testLoader, _ = setupDataLoaders(argParser)
