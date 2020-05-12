@@ -1,27 +1,6 @@
 import torch
 import torch.nn as nn
 
-def getEmbeddingsOfTargets(targets, idx2word, wordMap):
-  """
-    Creates tensor with the embeddings of the words present in the previously packed target reports
-    :param targets: packed_sequence tensor with indexes of words in target reports
-    :param idx2word: dictionary with index -> word correspondence.
-    :param wordMap: dictionary with word -> embedding correspondence
-    """
-  targetsList = targets.data.tolist()
-  word = idx2word[str(targetsList[0])]
-
-  # create tensor with embedding of first word
-  targetEmbeddings = wordMap[word]
-  targetEmbeddings = torch.from_numpy(targetEmbeddings).unsqueeze_(0).to(device)
-  
-  # concatenate embeddings of all other words
-  for index in targetsList[1:]:
-    word = idx2word[str(index)]
-    embedding = wordMap[word]
-    embedding = torch.from_numpy(embedding).unsqueeze_(0).to(device)
-    targetEmbeddings = torch.cat((targetEmbeddings, embedding),0)
-  return targetEmbeddings
 
 
 # continuous output (tensor of embed_dim)

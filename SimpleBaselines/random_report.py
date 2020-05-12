@@ -22,8 +22,6 @@ def main():
    # Create NlG metrics evaluator
     nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
-
-
     with open('/home/jcardoso/MIMIC/encodedTestCaptionsF.json') as json_file:
         referenceCaptionsDict = json.load(json_file)
 
@@ -31,13 +29,8 @@ def main():
         KBCaptionsDict = json.load(json_file)
 
     reference_ids = list(referenceCaptionsDict.keys())
-    #print(reference_ids)
-    #print(len(reference_ids))
 
     KB_ids = list(KBCaptionsDict.keys())
-    #print(KB_ids)
-    #print(len(KB_ids))
-
 
     for i in tqdm(range(len(referenceCaptionsDict.keys()))):
         references[0].append(unifyCaption(referenceCaptionsDict[reference_ids[i]]))
@@ -50,9 +43,6 @@ def main():
       for metric in metrics_dict:
         file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
 
-    #print(len(references[0]))
-    #print(len(hypotheses))
-    #print(hypotheses[:10])
 
 if __name__ == "__main__":
     main()

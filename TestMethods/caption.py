@@ -14,6 +14,8 @@ from tqdm import tqdm
 
 from nlgeval import NLGEval
 
+BEAM_SIZE = 4
+MAX_CAPTION_LENGTH = 350
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -37,7 +39,7 @@ def main():
 
     vocab_size = embeddings.shape[0]
 
-    references, hypotheses = evaluate(argParser, 4, encoder, decoder, testLoader, word2idx, idx2word)
+    references, hypotheses = evaluate(argParser, BEAM_SIZE, encoder, decoder, testLoader, word2idx, idx2word)
 
 
     metrics_dict = nlgeval.compute_metrics(references, hypotheses)
@@ -78,7 +80,7 @@ def evaluate(argParser, beam_size, encoder, decoder, testLoader, word2idx, idx2w
 
         # Move to GPU device, if available
         image = image.to(device)  # (1, 3, 256, 256)
-        #print(image.shape)
+
         # Encode
         encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
         enc_image_size = encoder_out.size(1)
@@ -93,10 +95,6 @@ def evaluate(argParser, beam_size, encoder, decoder, testLoader, word2idx, idx2w
 
         # Tensor to store top k previous words at each step; now they're just <start>
         k_prev_words = torch.LongTensor([[word2idx['<sos>']]] * k).to(device)  # (k, 1)
-
-        #print("K Prev: ", k_prev_words.shape)
-#        exit(1)
-
 
         # Tensor to store top k sequences; now they're just <start>
         seqs = k_prev_words  # (k, 1)
@@ -142,21 +140,13 @@ def evaluate(argParser, beam_size, encoder, decoder, testLoader, word2idx, idx2w
             prev_word_inds = top_k_words / vocab_size  # (s)
             next_word_inds = top_k_words % vocab_size  # (s)
 
-            #print(prev_word_inds)
-            #print(next_word_inds)
-            #print("Seqs:", seqs.shape)
-            #print(seqs[prev_word_inds].shape)
-            #print(next_word_inds.unsqueeze(1).shape)
             # Add new words to sequences
             seqs = torch.cat([seqs[prev_word_inds], next_word_inds.unsqueeze(1)], dim=1)  # (s, step+1)
-            #print(seqs.shape)
+
             # Which sequences are incomplete (didn't reach <end>)?
             incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
                                next_word != word2idx['<eoc>']]
             complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
- 
-            #print(complete_inds)
-            #print(incomplete_inds)
 
             # Set aside complete sequences
             if len(complete_inds) > 0:
@@ -175,11 +165,10 @@ def evaluate(argParser, beam_size, encoder, decoder, testLoader, word2idx, idx2w
             k_prev_words = next_word_inds[incomplete_inds].unsqueeze(1)
 
             # Break if things have been going on too long
-            if step > 350:
+            if step > MAX_CAPTION_LENGTH:
                 break
             step += 1
 
-        #break
         if k == beam_size:
             complete_seqs.extend(seqs[[incomplete_inds]].tolist())
             complete_seqs_scores.extend(top_k_scores[[incomplete_inds]])
@@ -188,18 +177,10 @@ def evaluate(argParser, beam_size, encoder, decoder, testLoader, word2idx, idx2w
         seq = complete_seqs[i]
 
         # References
-        #img_caps = allcaps[0].tolist()
-        #img_captions = list(
-            #map(lambda c: [w for w in c if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}],
-                #img_caps))  # remove <start> and pads
-        #print(caps[0].tolist())
         ref = [w for w in caps[0].tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
-        #print(ref)
         references[0].append(decodeCaption(ref, idx2word))
 
         # Hypotheses
-        #hypotheses.append([w for w in seq if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}])
-        #print(seq[0])
         seq = [w for w in seq if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
         hypotheses.append(decodeCaption(seq, idx2word))
 
@@ -208,9 +189,6 @@ def evaluate(argParser, beam_size, encoder, decoder, testLoader, word2idx, idx2w
         assert len(references[0]) == len(hypotheses)
         #break
 
-    # Calculate BLEU-4 scores
-    #bleu4 = corpus_bleu(references, hypotheses)
-    #print(hypotheses)
     return references, hypotheses
 
 

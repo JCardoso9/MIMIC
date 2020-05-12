@@ -11,13 +11,9 @@ sys.path.append('../Utils/')
 from generalUtilities import *
 
 
-#from utils import *
-
-
 class XRayDataset(Dataset):
     """MIMIC xray dataset."""
 
-    
 
     def __init__(self,word2idx_path,  encodedCaptionsJsonFile, captionsLengthsFile, imgsDir, transform=None, maxSize = 372):
         """
@@ -56,60 +52,30 @@ class XRayDataset(Dataset):
         encodedCaptionLength = 0
         encodedCaption = []
 
+        # Start of caption token
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<sos>'])
 
-        #print(self.encodedCaptionsLength[study])
+        # Caption
         encodedCaptionLength += self.encodedCaptionsLength[study]
         encodedCaption = self.encodeCaption(self.encodedCaptions[study], encodedCaption)
 
-
-        # Reports are comprised of only one setion
-        #if self.encodedCaptionsLength[study]['findings'] != 0:
-          #encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
-          #encodedCaption += self.encodedCaptions[study]['findings']
-
-
-
-        #elif self.encodedCaptionsLength[study]['impression'] != 0:
-          #encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
-          #encodedCaption += self.encodedCaptions[study]['impression']
-
-
-        #elif self.encodedCaptionsLength[study]['last_paragraph'] != 0:
-          #encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
-          #encodedCaption += self.encodedCaptions[study]['last_paragraph']
-        
-        # else:
-        #   print("error: no captions")
-
-        
-        # Reports are comprised of all available sections
-        # # print("Imp: ", torch.LongTensor([self.encodedCaptionsLength[study]['impression']]))
-        # encodedCaptionLength += self.encodedCaptionsLength[study]['impression']
-        # encodedCaption += self.encodedCaptions[study]['impression']
-
-      
-        # # print("Findi: ", torch.LongTensor([self.encodedCaptionsLength[study]['findings']]))
-        # encodedCaptionLength += self.encodedCaptionsLength[study]['findings']
-        # encodedCaption += self.encodedCaptions[study]['findings']
-
-      
-        # # print("LP: ", torch.LongTensor([self.encodedCaptionsLength[study]['last_paragraph']]))
-        # encodedCaptionLength += self.encodedCaptionsLength[study]['last_paragraph']
-        # encodedCaption += self.encodedCaptions[study]['last_paragraph']
-
+        # End of caption token
         encodedCaptionLength += 1
         encodedCaption.append(self.word2idx['<eoc>'])
+
+        # Pad captions until all have max_size
         encodedCaption = self.padCaption(torch.LongTensor(encodedCaption), self.maxSize, encodedCaptionLength)
 
 
         if self.transform:
             image = self.transform(image)
 
-        return image,  torch.LongTensor(encodedCaption), encodedCaptionLength #, unifyCaption(self.encodedCaptions[study])
+        return image,  torch.LongTensor(encodedCaption), encodedCaptionLength
 
 
+    # Transform caption comprised of list of words into
+    # list of ints according to the word -> index hash table
     def encodeCaption(self, caption, encodedCaption):
         for word in caption:
             if word in self.word2idx.keys():
@@ -118,8 +84,8 @@ class XRayDataset(Dataset):
                 encodedCaption.append(self.word2idx['<unk>'])
         return encodedCaption
 
-
-    def padCaption(self, caption, maxSize, encodedCaptionLength):      
+    # Pad caption to max Size
+    def padCaption(self, caption, maxSize, encodedCaptionLength):
       nrOfPads = maxSize - encodedCaptionLength
       padIdx = self.word2idx['<pad>']
 

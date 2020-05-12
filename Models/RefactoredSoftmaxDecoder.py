@@ -31,37 +31,6 @@ class RefactoredSoftmaxDecoder(BaseDecoderWAttention):
         self.init_weights()  # initialize some layers with the uniform distribution
 
 
-    def sample(self, preds, temperature=1.5):
-        softmax = nn.Softmax(dim=1)
-        preds = softmax(preds / temperature)
-#        print(preds.shape)
-        #preds = preds.to("cpu").numpy()
-#        print(preds)
-#        preds = torch.log(preds) / temperature
-#        print(preds)
-#        exp_preds = torch.exp(preds)
-        #print(exp_preds)
-#        preds = exp_preds / torch.sum(exp_preds)
-#        print(preds.shape)
-#        preds = preds.to("cpu").numpy()
-#        print(preds.shape)
-#        probas = np.random.multinomial(1, preds, 1)
-#        print(probas.shape)
-#        print(probas)
-#        indexes = np.argmax(probas)
-#        print(indexes)
-#        indexes = torch.from_numpy(indexes).to(device)
-#        print(preds.shape)
-#        print(torch.argmax(preds, dim=1).shape)
-        return torch.argmax(preds, dim=1)
-
-
-    def sortOriginalCaptions(self, originalCaptions, sortedIndexes):
-        sorted_original_captions = []
-        for sortedIndex in sortedIndexes:
-             sorted_original_captions.append(originalCaptions[sortedIndex])
-        return sorted_original_captions
-
 
     def forward(self, encoder_out, encoded_captions, caption_lengths):
         """
@@ -84,10 +53,6 @@ class RefactoredSoftmaxDecoder(BaseDecoderWAttention):
         caption_lengths, sort_ind = caption_lengths.sort(dim=0, descending=True)
         encoder_out = encoder_out[sort_ind]
         encoded_captions = encoded_captions[sort_ind]
-        #sorted_original_captions = None
-        #if original_captions is not None:
-            #sorted_original_captions = self.sortOriginalCaptions(original_captions, sort_ind.tolist())
-            #original_captions = original_captions[sort_ind]
 
         # Embedding
         embeddings = self.embedding(encoded_captions)  # (batch_size, max_caption_length, embed_dim)
@@ -125,11 +90,7 @@ class RefactoredSoftmaxDecoder(BaseDecoderWAttention):
             # When not using teacher forcing or with scheduled sampling prob
             # use the embedding for the previous generated word
             if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
-                #print("No Tf")
                 _, preds = torch.max(preds, dim=1)
-                #preds = self.sample(preds, temperature=1.0)
- #               print(preds.shape)
-                #print(preds)
                 input = self.embedding(preds)
 
 
@@ -143,7 +104,7 @@ class RefactoredSoftmaxDecoder(BaseDecoderWAttention):
 
 
 
-        return predictions, encoded_captions, decode_lengths, alphas, sort_ind #, sorted_original_captions
+        return predictions, encoded_captions, decode_lengths, alphas, sort_ind
 
 
 

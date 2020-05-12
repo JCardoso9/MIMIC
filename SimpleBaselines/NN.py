@@ -4,9 +4,10 @@ sys.path.append('../Dataset/')
 sys.path.append('../Models/')
 sys.path.append('../Utils/')
 
-from torchvision.models import densenet161, resnet50, vgg19
+from torchvision.models import resnet50
 from XRayDataset import *
 from generalUtilities import *
+
 import faiss
 from nlgeval import NLGEval
 
@@ -17,11 +18,9 @@ import os
 from tqdm import tqdm
 import json
 from torchvision import transforms
-import pickle
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 
 torch.manual_seed(2809)
 torch.backends.cudnn.deterministic = True
@@ -72,18 +71,15 @@ with open('/home/jcardoso/MIMIC/idx2wordF.json') as fp:
 with open('/home/jcardoso/MIMIC/word2idxF.json') as fp:
     word2idx = json.load(fp)
 
-
-d = 2048
+k = 1 # Number of nearest neighbours
+d = 2048 # Dimension of encoder_output used in faiss index
 index = faiss.IndexFlatIP(d)
 
+# Hash table that will have the correspondence
+# between train image index -> caption
+# Cannot be saved as the intra-batch instance order provided by the
+# dataloader cannot be deterministic, even if the batch itself can (?)
 train_captions = {}
-
-#with open('train_captionsNN.pkl', 'rb') as file:
-    #train_captions =  pickle.load(file)
-
-
-
-
 
 def generate_train_images_matrix():
 
@@ -97,31 +93,23 @@ def generate_train_images_matrix():
         encoder_out = encoder_out.view(batch_size,-1)
 
         encoder_out = torch.nn.functional.normalize(encoder_out, p=2, dim=1)
-        index.add(encoder_out.to("cpu").detach().numpy())
-        encodedCaption = [w for w in caps[0].tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
-#        print(decodeCaption(encodedCaption, idx2word))
 
-#        print("ººººººº")
+        # Fill index with encoder output (batch_size, encoder_out)
+        index.add(encoder_out.to("cpu").detach().numpy())
+
+        # Fill image index -> caption hash table
         for caption in caps:
-#            print("-----------")
             encodedCaption = [w for w in caption.tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
-#            print(decodeCaption(encodedCaption, idx2word))
             train_captions[count] = decodeCaption(encodedCaption, idx2word)
             count += 1
-#        print("~~~~~~~~~~")
-        #print(train_captions)
-#        print("Saved:",train_captions[0])
-        #break
-#        print("final:",train_captions)
+
+        # How many images should serve as reference during search phase?
+        # nr train images = batch_size * rounds
         rounds += 1
         if rounds > 38000:
             break
 
-    #with open('train_captionsNN.pkl', 'wb') as file:
-        #pickle.dump(train_captions, file)
-    #return index
 
-k=1
 
 def calculate_NN():
     references = [[]]
@@ -132,34 +120,25 @@ def calculate_NN():
         encoder_out = encoder(image)
         encoder_out = encoder_out.view(batch_size,-1)
         encoder_out = torch.nn.functional.normalize(encoder_out, p=2, dim=1)
-        D, I = index.search(encoder_out.to("cpu").detach().numpy(), k)
 
+        # Perform nearest neighbour search using dot product
+        # Given that vectors are normalized, this is equivalent to using cosine similarity
+        D, I = index.search(encoder_out.to("cpu").detach().numpy(), k)
 
         for caption in caps:
             encodedCaption = [w for w in caption.tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
             references[0].append(decodeCaption(encodedCaption, idx2word))
-        #print("\nD:",D)
-        #print("I",I)
-        #print(I.shape)
-        #print(I[0][0])
 
         for i in range(batch_size):
             hypotheses.append(train_captions[I[i][0]])
 
-        #break
-
     return references, hypotheses
-
-
 
 
 generate_train_images_matrix()
 
 references, hypotheses = calculate_NN()
 
-print(len(references[0]))
-
-print("HYPS:", len(hypotheses))
 
 metrics_dict = nlgeval.compute_metrics(references, hypotheses)
 print(metrics_dict)
@@ -170,9 +149,6 @@ with open("AllRefs.txt", 'w+') as file:
 with open("AllPreds.txt", 'w+') as file:
     for hypothesis in hypotheses:
         file.write(hypothesis.strip() + '\n')
-#with open("nearestN_TestResults.txt", "w+") as file:
-   #for metric in metrics_dict:
-      #file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
 
 
 
