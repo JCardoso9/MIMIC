@@ -16,6 +16,7 @@ from nlgeval import NLGEval
 
 BEAM_SIZE = 4
 MAX_CAPTION_LENGTH = 350
+DISABLE_TEACHER_FORCING = 0
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -61,12 +62,12 @@ def evaluate_beam(argParser, beam_size, encoder, decoder, testLoader, word2idx, 
     # TODO: Batched Beam Search
     # Therefore, do not use a batch_size greater than 1 - IMPORTANT!
 
+    decoder.set_teacher_forcing_usage(DISABLE_TEACHER_FORCING)
     decoder.eval()
     encoder.eval()
 
     # Lists to store references (true captions), and hypothesis (prediction) for each image
-    # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
-    # references = [[ref1a, ref1b, ref1c], [ref2a, ref2b], ...], hypotheses = [hyp1, hyp2, ...]
+    # references = [[ref1a, ref1b, ref1c]], hypotheses = [hyp1, hyp2, ...]
     references = [[]]
     hypotheses = list()
     vocab_size = decoder.embedding.weight.shape[0]
@@ -130,8 +131,9 @@ def evaluate_beam(argParser, beam_size, encoder, decoder, testLoader, word2idx, 
             elif (argParser.model == "Continuous"):
                 preds = decoder.fc(h) #(s, embed_dim)
                 preds = nn.functional.normalize(preds, p=2, dim=1)
-                scores = torch.mm(preds, decoder.embedding.weight.T)
-                #print(scores.shape)
+
+                # With normalized vectors dot product = cosine similarity
+                scores = torch.mm(preds, decoder.embedding.weight.T)  #(s,vocab_size)
 
 
             # Add
