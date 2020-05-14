@@ -108,7 +108,7 @@ class SmoothL1LossWordAndSentenceAndImgRetrieval(nn.Module):
 #          word_loss += self.criterion(unpadded_preds[sentence_idx], unpadded_targets[sentence_idx])
 
 #          sentence_loss += self.criterion(torch.mean(unpadded_preds[sentence_idx], dim=0) ,torch.mean(unpadded_targets[sentence_idx],dim=0)
-           img_embed_loss += self.criterion(torch.mean(unpadded_preds[sentence_idx], dim=0), img_embedding)
+#           img_embed_loss += self.criterion(torch.mean(unpadded_preds[sentence_idx], dim=0), img_embedding)
 
 
  #     return (1. - self.beta - self.img_embed_weight) * (word_loss / batch_size) +  self.beta * (sentence_loss / batch_size) +  self.img_embed_weight * (img_embed_loss / batch_size)

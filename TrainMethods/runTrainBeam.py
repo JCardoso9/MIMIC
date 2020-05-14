@@ -8,8 +8,7 @@ from argParser import *
 from TrainingEnvironment import *
 from generalUtilities import *
 from train import *
-from val import  *
-from caption import *
+from beam_caption import *
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -18,6 +17,8 @@ from datetime import datetime
 
 from nlgeval import NLGEval
 
+
+BEAM_SIZE = 4
 
 
 def main():
@@ -65,7 +66,8 @@ def main():
               epoch=epoch)
 
         # One epoch's validation
-        references, hypotheses = evaluate(argParser, 4, encoder, decoder, valLoader, word2idx, idx2word)
+        #references, hypotheses = evaluate(argParser, 4, encoder, decoder, valLoader, word2idx, idx2word)
+        references, hypotheses = evaluate_beam(argParser, BEAM_SIZE, encoder, decoder, valLoader, word2idx, idx2word)
 
         enc_scheduler.step()
         dec_scheduler.step()

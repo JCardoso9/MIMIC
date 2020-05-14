@@ -1,3 +1,5 @@
+
+
 import sys
 sys.path.append('../Utils/')
 sys.path.append('../')
@@ -60,8 +62,6 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
     :return: hypothesis and references
     """
 
-    encoder, decoder, criterion, embeddings, _, _, _, _, idx2word, word2idx =  setupModel(argParser)
-
     decoder.eval()
     encoder.eval()
 
@@ -99,15 +99,10 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
 
         input = decoder.sos_embedding.expand(batch_size, decoder.embed_dim).to(device) # (batch_size, embed_dim)
 
-        if (argParser.model == "Continuous"):
-            predictions = torch.zeros(batch_size, MAX_CAPTION_LENGTH, decoder.embed_dim, dtype=torch.long).to(device)
-
-        elif (argParser.model == "Softmax"):
-            predictions = torch.zeros(batch_size, MAX_CAPTION_LENGTH, 1, dtype=torch.long).to(device)
-
+        predictions = torch.zeros(batch_size, MAX_CAPTION_LENGTH, 1, dtype=torch.long).to(device)
         alphas = torch.zeros(batch_size, MAX_CAPTION_LENGTH , num_pixels).to(device)
 
-        while batch_size > len(finished_sequences):
+        while batch_size > nr_ended_sequences:
 
             awe, alpha = decoder.attention(encoder_out, h)
 
@@ -157,7 +152,6 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
             references[0].append(decodeCaption(encoded_reference, idx2word))
 
         for hyp in predictions:
-            pass
            # print(hyp.squeeze(1).tolist())
             #hyp = hyp.squeeze(1)
             #print(hyp.shape)

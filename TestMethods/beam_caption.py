@@ -128,10 +128,10 @@ def evaluate_beam(argParser, beam_size, encoder, decoder, testLoader, word2idx, 
                 scores = F.log_softmax(scores, dim=1)
 
             elif (argParser.model == "Continuous"):
-                preds = decoder.fc(h) (s, embed_dim)
+                preds = decoder.fc(h) #(s, embed_dim)
                 preds = nn.functional.normalize(preds, p=2, dim=1)
                 scores = torch.mm(preds, decoder.embedding.weight.T)
-                print(scores.shape)
+                #print(scores.shape)
 
 
             # Add

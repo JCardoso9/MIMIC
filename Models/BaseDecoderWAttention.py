@@ -64,7 +64,7 @@ class BaseDecoderWAttention(nn.Module):
         """
         self.embedding.weight = nn.Parameter(embeddings)
 
-    def fine_tune_embeddings(self, fine_tune=True):
+    def fine_tune_embeddings(self, fine_tune=False):
         """
         Allow fine-tuning of embedding layer? (Only makes sense to not-allow if using pre-trained embeddings).
         :param fine_tune: Allow?

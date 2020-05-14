@@ -7,8 +7,8 @@ sys.path.append('../')
 
 from Encoder import Encoder
 from Attention import *
-from RefactoredSoftmaxDecoder import *
-from RefactoredContinuousDecoder import *
+from SoftmaxDecoder import *
+from ContinuousDecoder import *
 from XRayDataset import *
 from TrainingEnvironment import *
 from losses import *
@@ -48,7 +48,7 @@ def setupModel(args):
 
   # Create adequate model
   if (args.model == 'Continuous'):
-    decoder = RefactoredContinuousDecoder(attention_dim=args.attention_dim,
+    decoder = ContinuousDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
@@ -60,7 +60,7 @@ def setupModel(args):
                                     use_custom_tf=args.use_custom_tf)
 
   elif (args.model == 'Softmax'):
-    decoder = RefactoredSoftmaxDecoder(attention_dim=args.attention_dim,
+    decoder = SoftmaxDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
