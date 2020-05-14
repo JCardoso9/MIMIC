@@ -58,7 +58,7 @@ class SmoothL1LossWordAndSentence(nn.Module):
       super(SmoothL1LossWord, self).__init__()
       # Loss function
       self.criterion = nn.SmoothL1Loss().to(device)
-      self.beta = 0.5
+      self.beta = beta
 
     def forward(self, targets, preds, decode_lengths):
 
@@ -78,6 +78,44 @@ class SmoothL1LossWordAndSentence(nn.Module):
       return 1
 
 
+class SmoothL1LossWordAndSentenceAndImgRetrieval(nn.Module):
+    '''
+      Uses pytorch's cosine embedding loss. Class created to abstract need of
+      using a y vector.
+    '''
+
+    def __init__(self, beta=0.3, img_embed_weight = 0.3):
+      super(SmoothL1LossWord, self).__init__()
+      # Loss function
+      self.criterion = nn.SmoothL1Loss().to(device)
+      self.beta = beta
+      self.img_embed_weight = img_embed_weight
+
+    def forward(self, targets, preds, decode_lengths):
+
+      img_embedding = targets[1]
+      targets = targets[0]
+
+      word_loss = 0.
+      sentence_loss = 0.
+      img_embed_loss = 0.
+
+      batch_size = unpadded.shape[0]
+      unpadded_targets = targets[:,:decode_lengths,:]
+      unpadded_preds = preds[:,:decode_lengths,:]
+
+#      for sentence_idx in range(batch_size):
+#          word_loss += self.criterion(unpadded_preds[sentence_idx], unpadded_targets[sentence_idx])
+
+#          sentence_loss += self.criterion(torch.mean(unpadded_preds[sentence_idx], dim=0) ,torch.mean(unpadded_targets[sentence_idx],dim=0)
+           img_embed_loss += self.criterion(torch.mean(unpadded_preds[sentence_idx], dim=0), img_embedding)
+
+
+ #     return (1. - self.beta - self.img_embed_weight) * (word_loss / batch_size) +  self.beta * (sentence_loss / batch_size) +  self.img_embed_weight * (img_embed_loss / batch_size)
+      return 1
+
+
+
 
 
 class SyntheticTripletLoss(nn.Module):
@@ -88,7 +126,7 @@ class SyntheticTripletLoss(nn.Module):
 
     def __init__(self, margin=0.5, mode='Ortho'):
       super(SyntheticTripletLoss, self).__init__()
-      self.margin = 0.5
+      self.margin = margin
       self.mode = mode
 
 

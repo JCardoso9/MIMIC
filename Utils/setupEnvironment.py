@@ -148,7 +148,7 @@ def setupDataLoaders(args):
   # Create MIMIC dataset loaders
   if (args.runType == "Testing"):
     testLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTestCaptionsPath,
-      args.encodedTestCaptionsLengthsPath, args.testImgsPath, transform), batch_size=1, shuffle=True)
+      args.encodedTestCaptionsLengthsPath, args.testImgsPath, transform), batch_size=args.batch_size, shuffle=True)
 
     return testLoader, None
 

@@ -145,9 +145,9 @@ def save_checkpoint(modelName, epoch, epochs_since_improvement, encoder, decoder
 
 
 
-def save_references_and_predictions(references, predictions, modelName):
-    refs_path = "../Experiments/" + modelName +"/Refs.txt"
-    preds_path = "../Experiments/" + modelName +"/Preds.txt"
+def save_references_and_predictions(references, predictions, modelName, mode):
+    refs_path = "../Experiments/" + modelName +"/" + mode +"Refs.txt"
+    preds_path = "../Experiments/" + modelName +"/" + mode + "Preds.txt"
     with open(refs_path, 'w+') as file:
         for reference in references[0]:
             file.write(reference.strip() + '\n')
