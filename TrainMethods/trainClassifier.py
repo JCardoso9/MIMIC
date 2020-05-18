@@ -126,9 +126,9 @@ def runEpochs(mode, encoder, criterion, encoder_optimizer, argParser):
 
         # Move to GPU, if available
         imgs = imgs.to(device)
-        _, pred_labels = encoder(imgs)
+        _, pred_labels_logits = encoder(imgs)
 
-        loss = criterion(pred_labels, reshape_target_labels(target_labels))
+        loss = criterion(pred_labels_logits, reshape_target_labels(target_labels))
 
         encoder_optimizer.zero_grad()
         loss.backward()
