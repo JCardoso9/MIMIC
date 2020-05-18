@@ -119,7 +119,10 @@ def setupModel(args):
     criterion = CosineEmbedLoss()
 
   elif(args.loss == 'SmoothL1'):
-    criterion = nn.SmoothL1Loss().to(device)
+    criterion = SmoothL1LossWord().to(device)
+
+  elif(args.loss == 'SmoothL1WordAndSentence'):
+    criterion = SmoothL1LossWordAndSentence().to(device)
 
   elif (args.loss == 'TripleMarginLoss'):
     criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)

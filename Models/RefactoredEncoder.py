@@ -55,4 +55,6 @@ class Encoder(nn.Module):
                 for p in c.parameters():
                     p.requires_grad = fine_tune
         elif network_name == 'densenet161':
-
+            for c in list(self.net.children())[8:]:
+                for p in c.parameters():
+                    p.requires_grad = fine_tune

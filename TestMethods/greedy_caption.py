@@ -17,7 +17,7 @@ from tqdm import tqdm
 from nlgeval import NLGEval
 
 MAX_CAPTION_LENGTH = 350
-DISABLE_TECHER_FORCING = 0
+DISABLE_TEACHER_FORCING = 0
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
@@ -132,7 +132,7 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
 
                 # Since we keep decoding even after producing an eoc, this only works if using a single instance
                 # During batched operations sequences that have already produced eoc can (and most likely will)
-                # produce <eocs> again
+                # produce <eoc>s again
                 nr_ended_sequences += pred_word_indexes.tolist().count(word2idx['<eoc>'])  #REMOVE IF USING BO
 
 

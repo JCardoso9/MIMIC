@@ -55,7 +55,7 @@ class SmoothL1LossWordAndSentence(nn.Module):
     '''
 
     def __init__(self, beta=0.5):
-      super(SmoothL1LossWord, self).__init__()
+      super(SmoothL1LossWordAndSentence, self).__init__()
       # Loss function
       self.criterion = nn.SmoothL1Loss().to(device)
       self.beta = beta
@@ -64,18 +64,21 @@ class SmoothL1LossWordAndSentence(nn.Module):
 
       word_loss = 0.
       sentence_loss = 0.
-      batch_size = unpadded.shape[0]
-      unpadded_targets = targets[:,:decode_lengths,:]
-      unpadded_preds = preds[:,:decode_lengths,:]
-#      for sentence_idx in range(batch_size):
-#          word_loss += self.criterion(unpadded_preds[sentence_idx], unpadded_targets[sentence_idx])
-
-#          sentence_loss += self.criterion(torch.mean(unpadded_preds[sentence_idx], dim=0) ,torch.mean(unpadded_targets[sentence_idx],dim=0)
+      batch_size = targets.shape[0]
+      #unpadded_targets = targets[:,:decode_lengths,:]
+      #unpadded_preds = preds[:,:decode_lengths,:]
+      for sentence_idx in range(batch_size):
+          word_loss += self.criterion(preds[sentence_idx, :decode_lengths[sentence_idx],:], targets[sentence_idx, :decode_lengths[sentence_idx],:])
 
 
+          #print(torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim= 0).shape)
+          sentence_loss += self.criterion(torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim= 0),
+                                          torch.mean(targets[sentence_idx, :decode_lengths[sentence_idx],:], dim=0))
 
- #     return 1 - self.beta * (word_loss / batch_size) +  self.beta * (sentence_loss / batch_size)
-      return 1
+
+
+      return 1 - self.beta * (word_loss / batch_size) +  self.beta * (sentence_loss / batch_size)
+#      return 1
 
 
 class SmoothL1LossWordAndSentenceAndImgRetrieval(nn.Module):
@@ -130,7 +133,7 @@ class SyntheticTripletLoss(nn.Module):
       self.mode = mode
 
 
-    def forward(self, targets, preds):
+    def forward(self, targets, preds, decode_lengths):
       '''
       Can create synthetic examples based on an orthogonal or subtraction basis
       :param targets: target embeddings, a tensor of dimensions (sum length captions in batch, embedding_dim)

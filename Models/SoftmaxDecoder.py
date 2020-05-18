@@ -9,7 +9,7 @@ from BaseDecoderWAttention import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class RefactoredSoftmaxDecoder(BaseDecoderWAttention):
+class SoftmaxDecoder(BaseDecoderWAttention):
     """
     Decoder with continuous Outputs.
     """
@@ -24,7 +24,7 @@ class RefactoredSoftmaxDecoder(BaseDecoderWAttention):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(RefactoredSoftmaxDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+        super(SoftmaxDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
 
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary

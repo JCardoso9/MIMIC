@@ -18,6 +18,9 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=16,
                         help='define batch size to train the model')
 
+    parser.add_argument('--csv_path', type=str, default="",
+                        help='path to the csv file with disease labels')
+
     parser.add_argument('--word2idxPath', type=str, default="",
                         help='path to the dictionary with word -> embeddings matrix index correspondence')
 

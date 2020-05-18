@@ -142,3 +142,23 @@ def save_references_and_predictions(references, predictions, modelName, mode):
         for prediction in predictions:
             file.write(prediction.strip() + '\n')
     return refs_path, preds_path
+
+
+
+def reshape_target_labels(targets):
+    batch_size = targets.shape[0]
+    nr_labels = targets.shape[1]
+    reshaped = torch.zeros((batch_size, nr_labels *2), dtype=torch.float)
+    for i in range(batch_size):
+        #print(i)
+        for j in range(nr_labels):
+            #print(j)
+            if targets[i,j] == -1:
+                reshaped[i,j*2] = 0.5
+                reshaped[i,j*2+1] = 0.5
+            elif targets[i,j] == 1:
+                reshaped[i,j*2] = 1
+            elif targets[i,j] == 0:
+                reshaped[i,j*2+1] = 1
+    return reshaped
+
