@@ -1,11 +1,11 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso/MIMIC/Experiments/Continuous/BEST.pth.tar
+/home/jcardoso/MIMIC/Experiments/ContinuousTest/checkpoint.pth.tar
 --model
 Continuous
 --model_name
-Continuous
+ContinuousTest
 --batch_size
 1
 --word2idxPath

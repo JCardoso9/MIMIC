@@ -3,7 +3,7 @@ Training
 --model
 Continuous
 --model_name
-ContinuousSmoothL1
+ContinuousSmoothL1Sentence
 --batch_size
 16
 --word2idxPath
@@ -25,7 +25,7 @@ ContinuousSmoothL1
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMICF.pkl
 --loss
-SmoothL1
+SmoothL1WordAndSentence
 --attention_dim
 512
 --decoder_dim

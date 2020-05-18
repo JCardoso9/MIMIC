@@ -1,7 +1,7 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso//MIMIC/Experiments/SoftmaxF/checkpoint.pth.tar
+/home/jcardoso//MIMIC/Experiments/SoftmaxFBeam/BEST.pth.tar
 --model
 Softmax
 --model_name
