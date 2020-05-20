@@ -59,6 +59,9 @@ def getFilesInDirectory(path):
 
 
 def decodeCaption(caption, idx2word):
+    if len(caption) == 0:
+        return 'empty'
+
     decodedCaption = idx2word[str(caption[0])]
 
     for index in caption[1:]:

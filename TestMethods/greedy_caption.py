@@ -96,7 +96,12 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
         image = image.to(device)  # (batch_size, 3, 224, 224)
 
         # Encode
-        encoder_out = encoder(image)  # (batch_size, enc_image_size, enc_image_size, encoder_dim)
+        if (argParser.use_classifier_encoder):
+            encoder_out, _ = encoder(image)
+        else:
+            encoder_out = encoder(image)
+        #encoder_out = encoder(image)  # (batch_size, enc_image_size, enc_image_size, encoder_dim)
+
         enc_image_size = encoder_out.size(1)
         encoder_dim = encoder_out.size(3)
         batch_size = encoder_out.size(0)

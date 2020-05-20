@@ -5,11 +5,11 @@ Softmax
 --model_name
 Classifier
 --batch_size
-16
+64
 --csv_path
 /home/jcardoso/MIMIC/findings_chexpert_labels.csv
 --trainImgsPath
-/home/jcardoso/MIMIC/ValF
+/home/jcardoso/MIMIC/TrainF
 --valImgsPath
 /home/jcardoso/MIMIC/ValF
 --loss

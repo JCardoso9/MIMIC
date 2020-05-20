@@ -6,6 +6,7 @@ sys.path.append('../Utils/')
 sys.path.append('../')
 
 from Encoder import Encoder
+from ClassifyingEncoder import *
 from Attention import *
 from SoftmaxDecoder import *
 from ContinuousDecoder import *
@@ -46,6 +47,15 @@ def setupModel(args):
 
   idx2word, word2idx = loadWordIndexDicts(args)
 
+  if (args.use_classifier_encoder):
+      encoder = ClassifyingEncoder()
+      classifierInfo = torch.load(args.classifier_checkpoint)
+      encoder.load_state_dict(classifierInfo['encoder'])
+  else:
+      encoder = Encoder()
+
+
+  #print(encoder.dim)
   # Create adequate model
   if (args.model == 'Continuous'):
     decoder = ContinuousDecoder(attention_dim=args.attention_dim,
@@ -53,6 +63,7 @@ def setupModel(args):
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
                                     sos_embedding = embeddings[word2idx['<sos>']],
+                                    encoder_dim=encoder.dim,
                                     dropout=args.dropout,
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
@@ -60,11 +71,13 @@ def setupModel(args):
                                     use_custom_tf=args.use_custom_tf)
 
   elif (args.model == 'Softmax'):
+    #print(encoder.dim)
     decoder = SoftmaxDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
                                     sos_embedding = embeddings[word2idx['<sos>']],
+                                    encoder_dim=1024,
                                     dropout=args.dropout,
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
@@ -73,13 +86,17 @@ def setupModel(args):
 
 
   decoder.load_pretrained_embeddings(embeddings)
-  encoder = Encoder()
+
+
 
   # Load trained model if checkpoint exists
   if (args.checkpoint is not None):
     modelInfo = torch.load(args.checkpoint)
     decoder.load_state_dict(modelInfo['decoder'])
-    encoder.load_state_dict(modelInfo['encoder'])
+    if (not args.use_classifier_encoder):
+        encoder.load_state_dict(modelInfo['encoder'])
+
+
 
   # Move to GPU, if available
   decoder = decoder.to(device)
@@ -130,6 +147,47 @@ def setupModel(args):
   return encoder, decoder, criterion, embeddings, encoder_optimizer, decoder_optimizer, dec_scheduler, enc_scheduler, idx2word, word2idx
 
 
+
+
+def setupOptiizers(encoder, decoder, args,modelInfo= None):
+  decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
+                                          lr=args.decoder_lr)
+  encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
+                                          lr=args.encoder_lr) if args.fine_tune_encoder else None
+  if (modelInfo is not None):
+    decoder_optimizer.load_state_dict(modelInfo['decoder_optimizer'])
+    encoder_optimizer.load_state_dict(modelInfo['encoder_optimizer'])
+
+  return encoder_optimizer, decoder_optimizer
+
+
+
+def setupSchedulers(encoder_optimizer, decoder_optimizer, args):
+  dec_scheduler = torch.optim.lr_scheduler.StepLR(decoder_optimizer, args.lr_decay_epochs, args.lr_decay)
+  enc_scheduler = torch.optim.lr_scheduler.StepLR(encoder_optimizer, args.lr_decay_epochs, args.lr_decay)
+  return dec_scheduler, enc_scheduler
+
+
+
+
+
+def setupCriterion(loss):
+  if (loss == 'CrossEntropy'):
+    criterion = nn.CrossEntropyLoss().to(device)
+
+  elif (loss == 'CosineSimilarity'):
+    criterion = CosineEmbedLoss()
+
+  elif(loss == 'SmoothL1'):
+    criterion = SmoothL1LossWord().to(device)
+
+  elif(loss == 'SmoothL1WordAndSentence'):
+    criterion = SmoothL1LossWordAndSentence().to(device)
+
+  elif (loss == 'TripleMarginLoss'):
+    criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)
+
+  return criterion
 
 
 

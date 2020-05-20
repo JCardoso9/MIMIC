@@ -15,6 +15,12 @@ def get_args():
     parser.add_argument('--checkpoint', type=str, default=None , metavar='N',
                         help='Path to the model\'s checkpoint (No checkpoint: empty string)')
 
+    parser.add_argument('--use_classifier_encoder', type=bool, default=False,
+                        help='use custom tf method in continuous model?')
+
+    parser.add_argument('--classifier_checkpoint', type=str, default=None , metavar='N',
+                        help='Path to the model\'s classifier checkpoint (No checkpoint: empty string)')
+
     parser.add_argument('--batch_size', type=int, default=16,
                         help='define batch size to train the model')
 

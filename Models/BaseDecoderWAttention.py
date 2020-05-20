@@ -13,7 +13,7 @@ class BaseDecoderWAttention(nn.Module):
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
         """
         :param attention_dim: size of attention network
@@ -23,6 +23,8 @@ class BaseDecoderWAttention(nn.Module):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
+        #encoder_dim = 1024
+        #print(encoder_dim)
         super(BaseDecoderWAttention, self).__init__()
 
         self.encoder_dim = encoder_dim
@@ -42,6 +44,8 @@ class BaseDecoderWAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)
         self.decode_step = nn.LSTMCell(embed_dim + encoder_dim, decoder_dim, bias=True)  # decoding LSTMCell
+        #encoder_dim = 1024
+        #print(encoder_dim)
         self.init_h = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial hidden state of LSTMCell
         self.init_c = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial cell state of LSTMCell
         self.f_beta = nn.Linear(decoder_dim, encoder_dim)  # linear layer to create a sigmoid-activated gate

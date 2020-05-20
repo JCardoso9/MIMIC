@@ -48,7 +48,11 @@ def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimize
         caplens = caplens.to(device)
 
         # Forward prop.
-        imgs = encoder(imgs)
+        if (argParser.use_classifier_encoder):
+            imgs, _ = encoder(imgs)
+        else:
+            imgs = encoder(imgs)
+
         decoder_output, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
 
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>

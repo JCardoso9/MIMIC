@@ -9,12 +9,12 @@ from BaseDecoderWAttention import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class SoftmaxDecoder(BaseDecoderWAttention):
+class SoftmaxHierarchicalDecoder(BaseDecoderWAttention):
     """
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
         """
         :param attention_dim: size of attention network
@@ -24,15 +24,19 @@ class SoftmaxDecoder(BaseDecoderWAttention):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(SoftmaxDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
+        super(SoftmaxHierarchicalDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048,
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
 
+
+        
+        self.sentence_decoder = nn.LSTMCell(e, decoder_dim, bias=True)
+        self.word_decoder = nn.LSTMCell(embed_dim + encoder_dim, decoder_dim, bias=True)
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
         self.init_weights()  # initialize some layers with the uniform distribution
 
 
 
-    def forward(self, encoder_out, encoded_captions, caption_lengths):
+    def forward(self, encoder_out, encoded_captions, caption_lengths, labels):
         """
         Forward propagation.
         :param encoder_out: encoded images, a tensor of dimension (batch_size, enc_image_size, enc_image_size, encoder_dim)
@@ -49,6 +53,9 @@ class SoftmaxDecoder(BaseDecoderWAttention):
         encoder_out = encoder_out.view(batch_size, -1, encoder_dim)  # (batch_size, num_pixels, encoder_dim)
         num_pixels = encoder_out.size(1)
 
+
+
+
         # Sort input data by decreasing lengths; why? apparent below
         caption_lengths, sort_ind = caption_lengths.sort(dim=0, descending=True)
         encoder_out = encoder_out[sort_ind]
@@ -58,7 +65,6 @@ class SoftmaxDecoder(BaseDecoderWAttention):
         embeddings = self.embedding(encoded_captions)  # (batch_size, max_caption_length, embed_dim)
 
         # Initialize LSTM state
-        #print(encoder_out.shape)
         h, c = self.init_hidden_state(encoder_out)  # (batch_size, decoder_dim)
 
         # We won't decode at the <end> position, since we've finished generating as soon as we generate <end>

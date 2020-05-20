@@ -83,7 +83,12 @@ def evaluate_beam(argParser, beam_size, encoder, decoder, testLoader, word2idx, 
         image = image.to(device)  # (1, 3, 256, 256)
 
         # Encode
-        encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
+        if (argParser.use_classifier_encoder):
+            encoder_out, _ = encoder(image)
+        else:
+            encoder_out = encoder(image)
+
+        #encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
         enc_image_size = encoder_out.size(1)
         encoder_dim = encoder_out.size(3)
 

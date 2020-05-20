@@ -14,7 +14,7 @@ class ContinuousDecoder(BaseDecoderWAttention):
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.,
                  use_custom_tf=False):
         """
@@ -25,7 +25,7 @@ class ContinuousDecoder(BaseDecoderWAttention):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(ContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+        super(ContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
 
 

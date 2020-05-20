@@ -14,10 +14,10 @@ class ClassifyingEncoder(nn.Module):
         self.network_name= network_name
 
         if network_name == 'densenet161':
-            self.dim = 2208
+            self.dim = 1024
             self.nr_classes = 28
 
-            self.net = torchvision.models.densenet161(pretrained=True)
+            self.net = torchvision.models.densenet121(pretrained=True)
             self.batch_norm = list(list(self.net.children())[0])[-1]
             self.net = nn.Sequential(*list(list(self.net.children())[0])[:-1])
             self.classifier = nn.Linear(self.dim, self.nr_classes)
@@ -35,7 +35,7 @@ class ClassifyingEncoder(nn.Module):
         out = F.relu(norm_batch, inplace=True)
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = torch.flatten(out, 1)
-        class_preds = self.classifier(out)
+        class_preds_logits = self.classifier(out)
 
         img_features = img_features.permute(0, 2, 3, 1)
         return img_features, class_preds_logits

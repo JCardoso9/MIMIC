@@ -47,7 +47,7 @@ def main():
 
     enc_scheduler = torch.optim.lr_scheduler.StepLR(encoder_optimizer, argParser.lr_decay_epochs, argParser.lr_decay)
 
-    criterion = nn.CrossEntropyLoss().to(device)
+    criterion = nn.BCEWithLogitsLoss().to(device)
 
 
     cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
@@ -61,15 +61,14 @@ def main():
             break
 
         # One epoch's training
-        _ = runEpochs("Train", encoder, criterion, encoder_optimizer, argParser)
+        _ = runEpochs(epoch, "Train", encoder, criterion, encoder_optimizer, argParser)
 
-        recent_loss = runEpochs("Test", encoder, criterion, encoder_optimizer, argParser)
+        recent_loss = runEpochs(epoch, "Test", encoder, criterion, encoder_optimizer, argParser)
 
         enc_scheduler.step()
-        dec_scheduler.step()
 
         # Check if there was an improvement
-        is_best = recent_loss > trainingEnvironment.best_loss
+        is_best = recent_loss < trainingEnvironment.best_loss
 
         trainingEnvironment.best_loss = min(recent_loss, trainingEnvironment.best_loss)
 
@@ -89,7 +88,7 @@ def main():
 
 
 
-def runEpochs(mode, encoder, criterion, encoder_optimizer, argParser):
+def runEpochs(epoch, mode, encoder, criterion, encoder_optimizer, argParser):
 
 
 
@@ -107,7 +106,7 @@ def runEpochs(mode, encoder, criterion, encoder_optimizer, argParser):
 
 
     elif (mode =='Test'):
-        loader = DataLoader(ClassXRayDataset( argParser.valImgsPath, argParser.csv_path, transform), batch_size=1, shuffle=True)
+        loader = DataLoader(ClassXRayDataset( argParser.valImgsPath, argParser.csv_path, transform), batch_size=argParser.batch_size, shuffle=True)
 
 
 
@@ -126,9 +125,9 @@ def runEpochs(mode, encoder, criterion, encoder_optimizer, argParser):
 
         # Move to GPU, if available
         imgs = imgs.to(device)
-        _, pred_labels_logits = encoder(imgs)
+        features, pred_labels_logits = encoder(imgs)
 
-        loss = criterion(pred_labels_logits, reshape_target_labels(target_labels))
+        loss = criterion(pred_labels_logits, reshape_target_labels(target_labels).to(device))
 
         encoder_optimizer.zero_grad()
         loss.backward()
@@ -138,7 +137,9 @@ def runEpochs(mode, encoder, criterion, encoder_optimizer, argParser):
 
         encoder_optimizer.step()
 
-        losses.update(loss.item(), sum(decode_lengths))
+        batch_size = imgs.shape[0]
+
+        losses.update(loss.item(), batch_size)
         #top5accs.update(top5, sum(decode_lengths))
         batch_time.update(time.time() - start)
 
@@ -151,6 +152,13 @@ def runEpochs(mode, encoder, criterion, encoder_optimizer, argParser):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(loader),
                                                                           batch_time=batch_time,
                                                                           data_time=data_time, loss=losses))
+
+        del loss
+        del imgs
+        del target_labels
+        del pred_labels_logits
+        del features
+
     path = '../Experiments/' + argParser.model_name + '/' + mode + 'Losses.txt'
     writeLossToFile(losses.avg, path)
 
