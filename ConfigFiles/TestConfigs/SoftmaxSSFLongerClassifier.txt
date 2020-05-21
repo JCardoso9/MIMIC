@@ -1,11 +1,11 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Sentence/BEST.pth.tar
+/home/jcardoso//MIMIC/Experiments/SoftmaxSSFLongerClassifier/checkpoint.pth.tar
 --model
-Continuous
+Softmax
 --model_name
-ContinuousSmoothL1Sentence
+SoftmaxSSFLongerClassifier
 --batch_size
 1
 --word2idxPath
@@ -21,7 +21,7 @@ ContinuousSmoothL1Sentence
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMICF.pkl
 --loss
-CosineSimilarity
+CrossEntropy
 --attention_dim
 512
 --decoder_dim
@@ -48,5 +48,5 @@ True
 1.
 --use_tf_as_input
 0
---encoder_name
-resnet101
+--use_classifier_encoder
+1

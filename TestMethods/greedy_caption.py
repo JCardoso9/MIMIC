@@ -167,10 +167,11 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
 
             input = decoder.embedding(pred_word_indexes)
             t +=1
-
+      
             if t > MAX_CAPTION_LENGTH - 1:
                 #print("Reached maximum caption length, ending batch")
                 break
+
 
         # The decodeCaption function stops after the first <eoc>, but does not handle pads or sos
         for reference in caps:

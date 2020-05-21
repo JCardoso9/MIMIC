@@ -12,6 +12,10 @@ def get_args():
     parser.add_argument('--model_name', type=str, default='testModel',
                         help='name of the model to be stored in results')
 
+    parser.add_argument('--encoder_name', type=str, default='',
+                        help='name of the pre trained encoder model to be used')
+
+
     parser.add_argument('--checkpoint', type=str, default=None , metavar='N',
                         help='Path to the model\'s checkpoint (No checkpoint: empty string)')
 

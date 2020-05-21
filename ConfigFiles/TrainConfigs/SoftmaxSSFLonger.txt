@@ -60,3 +60,5 @@ True
 0.05
 --early_stop_epoch_threshold
 13
+--encoder_name
+resnet101

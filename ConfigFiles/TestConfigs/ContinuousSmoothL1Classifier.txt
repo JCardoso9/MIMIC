@@ -1,11 +1,11 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Sentence/BEST.pth.tar
+/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Classifier/BEST.pth.tar
 --model
 Continuous
 --model_name
-ContinuousSmoothL1Sentence
+ContinuousSmoothL1Classifier
 --batch_size
 1
 --word2idxPath
@@ -48,5 +48,5 @@ True
 1.
 --use_tf_as_input
 0
---encoder_name
-resnet101
+--use_classifier_encoder
+1

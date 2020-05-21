@@ -13,7 +13,7 @@ class BaseDecoderWAttention(nn.Module):
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, nr_labels, encoder_features_resized_dim = 256, encoder_dim=1024,
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, nr_labels, hidden_dim = 256, encoder_dim=1024,
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
         """
         :param attention_dim: size of attention network
@@ -36,7 +36,7 @@ class BaseDecoderWAttention(nn.Module):
         self.use_tf_as_input = use_tf_as_input
         self.use_scheduled_sampling = use_scheduled_sampling
         self.scheduled_sampling_prob = scheduled_sampling_prob
-        self.encoder_features_resized_dim = encoder_features_resized
+        self.hidden_dim = hidden_dim
 
 
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
@@ -44,16 +44,22 @@ class BaseDecoderWAttention(nn.Module):
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)
         
-        self.resize_encoder_features = nn.Linear(encoder_dim, encoder_features_resized_dim)
+        self.resize_encoder_features = nn.Linear(encoder_dim, hidden_dim)
         
-        self.sentence_decoder = nn.LSTMCell(encoder_features_resized_dim + nr_labels, decoder_dim, bias=True)  # decoding LSTMCell
-        self.word_decoder = nn.LSTMCell(embed_dim + encoder_features_resized_dim, decoder_dim, bias=True)
+        self.sentence_decoder = nn.LSTMCell(hidden_dim + nr_labels, decoder_dim, bias=True)  # decoding LSTMCell
+        self.word_decoder = nn.LSTMCell(embed_dim + hidden_dim, decoder_dim, bias=True)
 
         self.init_h_sentence_dec = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial hidden state of LSTMCell
         self.init_c_sentence_dec = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial cell state of LSTMCell
         self.init_h_word_dec = nn.Linear(encoder_features_resized_dim, decoder_dim)  # linear layer to find initial hidden state of LSTMCell
         self.init_c_word_dec = nn.Linear(encoder_features_resized_dim, decoder_dim)  # linear layer to find initial cell state of LSTMCell
         
+        self.sentence_decoder_fc_sizes = [
+            self.hidden_size,  # topic
+            1                 # stop
+        ]
+        self.sentence_decoder_fc = nn.Linear(self.hidden_size, sum(self.sentence_decoder))
+
         self.topic_vector = nn.Linear(decoder_dim, 
         self.stop_signal = nn.Linear(decoder_dim, 1)
 

@@ -22,8 +22,8 @@ from torchvision import transforms
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-torch.manual_seed(2809)
-torch.backends.cudnn.deterministic = True
+#torch.manual_seed(2809)
+#torch.backends.cudnn.deterministic = True
 
 # Create NlG metrics evaluator
 nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
@@ -55,11 +55,11 @@ transform = transforms.Compose([
     ])
 
 
-batch_size = 4
+batch_size = 1
 
 
 trainLoader = DataLoader(XRayDataset('/home/jcardoso/MIMIC/word2idxF.json', '/home/jcardoso/MIMIC/encodedTrainCaptionsF.json',
-      '/home/jcardoso/MIMIC/encodedTrainCaptionsLengthsF.json', '/home/jcardoso/MIMIC/TrainF',  transform), batch_size=batch_size, shuffle=False)
+      '/home/jcardoso/MIMIC/encodedTrainCaptionsLengthsF.json', '/home/jcardoso/MIMIC/TrainF',  transform), batch_size=batch_size, shuffle=True)
 
 testLoader = DataLoader(XRayDataset('/home/jcardoso/MIMIC/word2idxF.json', '/home/jcardoso/MIMIC/encodedTestCaptionsF.json',
       '/home/jcardoso/MIMIC/encodedTestCaptionsLengthsF.json', '/home/jcardoso/MIMIC/TestF',  transform), batch_size=batch_size, shuffle=False)
@@ -105,9 +105,9 @@ def generate_train_images_matrix():
 
         # How many images should serve as reference during search phase?
         # nr train images = batch_size * rounds
-        rounds += 1
-        if rounds > 38000:
-            break
+        #rounds += 1
+        #if rounds == 1:
+        break
 
 
 
@@ -143,10 +143,10 @@ references, hypotheses = calculate_NN()
 metrics_dict = nlgeval.compute_metrics(references, hypotheses)
 print(metrics_dict)
 
-with open("AllRefs.txt", 'w+') as file:
+with open("1NNRefs.txt", 'w+') as file:
     for reference in references[0]:
         file.write(reference.strip() + '\n')
-with open("AllPreds.txt", 'w+') as file:
+with open("1NNPreds.txt", 'w+') as file:
     for hypothesis in hypotheses:
         file.write(hypothesis.strip() + '\n')
 

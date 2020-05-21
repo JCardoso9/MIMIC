@@ -3,26 +3,25 @@ from torch import nn
 import torchvision
 
 
-class Encoder(nn.Module):
+class RefactoredEncoder(nn.Module):
     """
     Encoder.
     """
 
-    def __init__(self, encoded_image_size=14, network_name='resnet101'):
-        super(Encoder, self).__init__()
-        self.enc_image_size = encoded_image_size
+    def __init__(self, network_name, encoded_image_size=14):
+        super(RefactoredEncoder, self).__init__()
+        self.network_name = network_name
 
-        if network_name == 'resnet101':
+        if self.network_name == 'resnet101':
             resnet = torchvision.models.resnet101(pretrained=True)  # pretrained ImageNet ResNet-101
             modules = list(resnet.children())[:-2]
             self.dim = 2048
 
 
-        elif network_name == 'densenet161':
-            densenet = torchvision.models.densenet161(pretrained=True)
-            modules = list(list(self.net.children())[0])[:-1])
-            self.dim = 1920
-
+        elif self.network_name == 'densenet121':
+            densenet = torchvision.models.densenet121(pretrained=True)
+            modules = list(list(densenet.children())[0])[:-1]
+            self.dim = 1024
 
         self.net = nn.Sequential(*modules)
 
@@ -38,7 +37,7 @@ class Encoder(nn.Module):
         :return: encoded images
         """
         out = self.net(images)  # (batch_size, 2048, image_size/32, image_size/32)
-        out = self.adaptive_pool(out)  # (batch_size, 2048, encoded_image_size, encoded_image_size)
+        #out = self.adaptive_pool(out)  # (batch_size, 2048, encoded_image_size, encoded_image_size)
         out = out.permute(0, 2, 3, 1)  # (batch_size, encoded_image_size, encoded_image_size, 2048)
         return out
 
@@ -50,11 +49,11 @@ class Encoder(nn.Module):
         for p in self.net.parameters():
             p.requires_grad = False
         # If fine-tuning, only fine-tune convolutional blocks 2 through 4
-        if network_name == 'resnet101':
-            for c in list(self.resnet.children())[5:]:
+        if self.network_name == 'resnet101':
+            for c in list(self.net.children())[5:]:
                 for p in c.parameters():
                     p.requires_grad = fine_tune
-        elif network_name == 'densenet161':
+        elif self.network_name == 'densenet121':
             for c in list(self.net.children())[8:]:
                 for p in c.parameters():
                     p.requires_grad = fine_tune

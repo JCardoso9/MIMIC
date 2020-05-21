@@ -5,7 +5,7 @@ sys.path.append('../Models/')
 sys.path.append('../Utils/')
 sys.path.append('../')
 
-from Encoder import Encoder
+from RefactoredEncoder import *
 from ClassifyingEncoder import *
 from Attention import *
 from SoftmaxDecoder import *
@@ -49,10 +49,15 @@ def setupModel(args):
 
   if (args.use_classifier_encoder):
       encoder = ClassifyingEncoder()
-      classifierInfo = torch.load(args.classifier_checkpoint)
-      encoder.load_state_dict(classifierInfo['encoder'])
+      print("Created Classifier encoder")
+      if (args.checkpoint is  None):
+          print("LOading pre-trained Classifier")
+          classifierInfo = torch.load(args.classifier_checkpoint)
+          encoder.load_state_dict(classifierInfo['encoder'])
+
   else:
-      encoder = Encoder()
+      print("Created refactored encoder")
+      encoder = RefactoredEncoder(args.encoder_name)
 
 
   #print(encoder.dim)
@@ -77,7 +82,7 @@ def setupModel(args):
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
                                     sos_embedding = embeddings[word2idx['<sos>']],
-                                    encoder_dim=1024,
+                                    encoder_dim=encoder.dim,
                                     dropout=args.dropout,
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
@@ -93,8 +98,9 @@ def setupModel(args):
   if (args.checkpoint is not None):
     modelInfo = torch.load(args.checkpoint)
     decoder.load_state_dict(modelInfo['decoder'])
-    if (not args.use_classifier_encoder):
-        encoder.load_state_dict(modelInfo['encoder'])
+    #if (not args.use_classifier_encoder):
+    print("Loaded encoder from the BEST checkpoint")
+    encoder.load_state_dict(modelInfo['encoder'])
 
 
 

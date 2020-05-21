@@ -48,3 +48,5 @@ True
 1.
 --use_tf_as_input
 0
+--encoder_name
+resnet101

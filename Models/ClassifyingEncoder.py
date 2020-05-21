@@ -8,12 +8,12 @@ class ClassifyingEncoder(nn.Module):
     Encoder.
     """
 
-    def __init__(self, encoded_image_size=14, network_name='densenet161'):
+    def __init__(self, encoded_image_size=14, network_name='densenet121'):
         super(ClassifyingEncoder, self).__init__()
         self.enc_image_size = encoded_image_size
         self.network_name= network_name
 
-        if network_name == 'densenet161':
+        if network_name == 'densenet121':
             self.dim = 1024
             self.nr_classes = 28
 
@@ -54,7 +54,7 @@ class ClassifyingEncoder(nn.Module):
         for p in self.net.parameters():
             p.requires_grad = False
         # If fine-tuning, only fine-tune convolutional blocks 2 through 4
-        if self.network_name == 'densenet161':
+        if self.network_name == 'densenet121':
             for c in list(self.net.children())[8:]:
                 for p in c.parameters():
                     p.requires_grad = fine_tune

@@ -1,11 +1,11 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Sentence/BEST.pth.tar
+/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Densenet/BEST.pth.tar
 --model
 Continuous
 --model_name
-ContinuousSmoothL1Sentence
+ContinuousSmoothL1Densenet
 --batch_size
 1
 --word2idxPath
@@ -49,4 +49,4 @@ True
 --use_tf_as_input
 0
 --encoder_name
-resnet101
+densenet121

@@ -60,4 +60,5 @@ True
 3
 --rate_change_scheduled_sampling_prob
 0.05
-
+--encoder_name
+resnet101

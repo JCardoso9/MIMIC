@@ -50,3 +50,5 @@ True
 5.
 --alpha_c
 1.
+--encoder_name
+resnet101
