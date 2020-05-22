@@ -165,3 +165,12 @@ def reshape_target_labels(targets):
                 reshaped[i,j*2+1] = 1
     return reshaped
 
+
+def getSmoothL1Distance(preds, targets, smoothL1Calculator):
+    
+    #x = preds -targets
+    #print(x.shape)
+    preds = preds.expand(targets.shape[0], preds.shape[1])
+    scores = smoothL1Calculator(preds, targets)
+    return torch.mean(scores, dim=1)
+

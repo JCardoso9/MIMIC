@@ -4,17 +4,20 @@ import torch
 from torch import nn
 import torchvision
 from Attention import Attention
-from BaseDecoderWAttention import *
+from BaseHierarchicalDecoder import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class SoftmaxHierarchicalDecoder(BaseDecoderWAttention):
+# REMOVE decoder_dim
+
+
+class HierarchicalSoftmaxDecoder(BaseHierarchicalDecoder):
     """
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048, 
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding,  nr_labels = 28, hidden_dim = 256, encoder_dim=1024,
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
         """
         :param attention_dim: size of attention network
@@ -24,13 +27,11 @@ class SoftmaxHierarchicalDecoder(BaseDecoderWAttention):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(SoftmaxHierarchicalDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim=2048,
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
+        super(HierarchicalSoftmaxDecoder, self).__init__(attention_dim, decoder_dim,embed_dim,  vocab_size, sos_embedding, nr_labels, hidden_dim, encoder_dim,
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob)
 
 
         
-        self.sentence_decoder = nn.LSTMCell(e, decoder_dim, bias=True)
-        self.word_decoder = nn.LSTMCell(embed_dim + encoder_dim, decoder_dim, bias=True)
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
         self.init_weights()  # initialize some layers with the uniform distribution
 

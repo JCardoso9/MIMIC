@@ -83,6 +83,8 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
     hypotheses = list()
     vocab_size = decoder.embedding.weight.shape[0]
 
+    smoothL1Calculator = nn.SmoothL1Loss(reduction='none')
+
     # For each image
     for i, (image, caps, caplens) in enumerate(
             tqdm(testLoader, desc="Evaluating with greedy decoding: ")):
@@ -152,6 +154,10 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
 
                 # With normalized vectors  dot product = cosine similarity 
                 cosine_sim_scores = torch.mm(preds, decoder.embedding.weight.T)  #(batch_size, vocab_size)
+                
+                #print(decoder.embedding.weight.shape)
+                #cosine_sim_scores = getSmoothL1Distance(preds, decoder.embedding.weight, smoothL1Calculator) #cosine_sim_scores = getSmoothL1Distance(preds, target)
+                #cosine_sim_scores.unsqueeze_(0)
                 pred_word_indexes = torch.argmax(cosine_sim_scores, dim=1)  #(batch_size, 
 
                 # See softmax model comments

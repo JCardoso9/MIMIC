@@ -5,12 +5,15 @@ sys.path.append('../Models/')
 sys.path.append('../Utils/')
 sys.path.append('../')
 
+from Encoder import *
 from RefactoredEncoder import *
 from ClassifyingEncoder import *
 from Attention import *
+from HierarchicalSoftmaxDecoder import *
 from SoftmaxDecoder import *
 from ContinuousDecoder import *
 from XRayDataset import *
+from HierarchicalXRayDataset import *
 from TrainingEnvironment import *
 from losses import *
 
@@ -57,8 +60,10 @@ def setupModel(args):
 
   else:
       print("Created refactored encoder")
-      encoder = RefactoredEncoder(args.encoder_name)
-
+      if (args.encoder_name == 'resnet101'):
+          encoder = Encoder()
+      else:
+          encoder = RefactoredEncoder(args.encoder_name)
 
   #print(encoder.dim)
   # Create adequate model
@@ -155,12 +160,113 @@ def setupModel(args):
 
 
 
-def setupOptiizers(encoder, decoder, args,modelInfo= None):
+
+
+def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpoint=None):
+  # Load embeddings from disk
+  word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk(args.embeddingsPath, args.normalizeEmb)
+  embeddings = embeddings.to(device)
+
+  idx2word, word2idx = loadWordIndexDicts(args)
+
+  if (args.use_classifier_encoder):
+      encoder = ClassifyingEncoder()
+      print("Created Classifier encoder")
+      if (model_checkpoint is  None):
+          print("LOading pre-trained Classifier")
+          #classifierInfo = torch.load(args.classifier_checkpoint)
+          encoder.load_state_dict(classifying_encoder_checkpoint['encoder'])
+
+  else:
+      if (args.encoder_name == 'resnet101'):
+          print("Created old encoder")
+          encoder = Encoder()
+      else:
+          print("Created refactored encoder")
+          encoder = RefactoredEncoder(args.encoder_name)
+
+  #print(encoder.dim)
+  # Create adequate model
+  if (args.model == 'Continuous'):
+    decoder = ContinuousDecoder(attention_dim=args.attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=args.decoder_dim,
+                                    vocab_size=vocab_size,
+                                    sos_embedding = embeddings[word2idx['<sos>']],
+                                    encoder_dim=encoder.dim,
+                                    dropout=args.dropout,
+                                    use_tf_as_input = args.use_tf_as_input,
+                                    use_scheduled_sampling=args.use_scheduled_sampling,
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
+                                    use_custom_tf=args.use_custom_tf)
+
+
+  elif (args.model == 'Softmax'):
+    #print(encoder.dim)
+    decoder = SoftmaxDecoder(attention_dim=args.attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=args.decoder_dim,
+                                    vocab_size=vocab_size,
+                                    sos_embedding = embeddings[word2idx['<sos>']],
+                                    encoder_dim=encoder.dim,
+                                    dropout=args.dropout,
+                                    use_tf_as_input = args.use_tf_as_input,
+                                    use_scheduled_sampling=args.use_scheduled_sampling,
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob)
+
+  elif (args.model == "HierarchicalSoftmax"):
+      decoder = HierarchicalSoftmaxDecoder(attention_dim=args.attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=args.hidden_dim,
+                                    vocab_size=vocab_size,
+                                    sos_embedding = embeddings[word2idx['<sos>']],
+                                    encoder_dim=encoder.dim,
+                                    dropout=args.dropout,
+                                    use_tf_as_input = args.use_tf_as_input,
+                                    use_scheduled_sampling=args.use_scheduled_sampling,
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob)
+
+
+
+
+
+  decoder.load_pretrained_embeddings(embeddings)
+
+
+
+  # Load trained model if checkpoint exists
+  if (model_checkpoint is not None):
+    decoder.load_state_dict(model_checkpoint['decoder'])
+    #if (not args.use_classifier_encoder):
+    print("Loaded encoder from the BEST checkpoint")
+    encoder.load_state_dict(model_checkpoint['encoder'])
+
+
+
+  # Move to GPU, if available
+  decoder = decoder.to(device)
+  encoder = encoder.to(device)
+
+  if (args.runType == "Testing"):
+    decoder.eval()
+    encoder.eval()
+
+  elif (args.runType == "Training"):
+    decoder.fine_tune_embeddings(args.fine_tune_embeddings)
+    encoder.fine_tune(args.fine_tune_encoder)
+
+  return encoder, decoder
+
+
+
+
+def setupOptimizers(encoder, decoder, args,modelInfo= None):
   decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
                                           lr=args.decoder_lr)
   encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
                                           lr=args.encoder_lr) if args.fine_tune_encoder else None
   if (modelInfo is not None):
+    print("Loaded optimizer state dicts")
     decoder_optimizer.load_state_dict(modelInfo['decoder_optimizer'])
     encoder_optimizer.load_state_dict(modelInfo['encoder_optimizer'])
 
@@ -220,10 +326,17 @@ def setupDataLoaders(args):
     return testLoader, None
 
   elif (args.runType == "Training"):
-    trainLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTrainCaptionsPath,
-      args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
-    valLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedValCaptionsPath,
-      args.encodedValCaptionsLengthsPath, args.valImgsPath, transform), batch_size=1, shuffle=True)
+    if "Hierarchical" in args.model:
+        trainLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedTrainCaptionsPath,
+           args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
+        valLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedValCaptionsPath,
+           args.encodedValCaptionsLengthsPath, args.valImgsPath, transform), batch_size=1, shuffle=True)
+
+    else:
+        trainLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTrainCaptionsPath,
+          args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
+        valLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedValCaptionsPath,
+          args.encodedValCaptionsLengthsPath, args.valImgsPath, transform), batch_size=1, shuffle=True)
 
     return trainLoader, valLoader
 

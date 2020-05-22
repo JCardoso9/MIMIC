@@ -8,12 +8,12 @@ from abc import ABC, abstractmethod
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class BaseDecoderWAttention(nn.Module):
+class BaseHierarchicalDecoder(nn.Module):
     """
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, nr_labels, hidden_dim = 256, encoder_dim=1024,
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, nr_labels=28, hidden_dim = 256, encoder_dim=1024,
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
         """
         :param attention_dim: size of attention network
@@ -23,10 +23,9 @@ class BaseDecoderWAttention(nn.Module):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(BaseDecoderWAttention, self).__init__()
+        super(BaseHierarchicalDecoder, self).__init__()
 
         self.nr_labels = nr_labels
-        self.img_encoding_dim = img_encoding_dim
         self.attention_dim = attention_dim
         self.embed_dim = embed_dim
         self.decoder_dim = decoder_dim
@@ -39,29 +38,28 @@ class BaseDecoderWAttention(nn.Module):
         self.hidden_dim = hidden_dim
 
 
-        self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
+        self.visual_attention = Attention(encoder_dim, hidden_dim, attention_dim)  # attention network
+
+        self.label_attention = Attention(nr_labels, hidden_dim, attention_dim) 
 
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)
         
         self.resize_encoder_features = nn.Linear(encoder_dim, hidden_dim)
         
-        self.sentence_decoder = nn.LSTMCell(hidden_dim + nr_labels, decoder_dim, bias=True)  # decoding LSTMCell
-        self.word_decoder = nn.LSTMCell(embed_dim + hidden_dim, decoder_dim, bias=True)
+        self.sentence_decoder = nn.LSTMCell(encoder_dim + nr_labels, hidden_dim, bias=True)  # decoding LSTMCell
+        self.word_decoder = nn.LSTMCell(embed_dim + hidden_dim, hidden_dim, bias=True)
 
-        self.init_h_sentence_dec = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial hidden state of LSTMCell
-        self.init_c_sentence_dec = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial cell state of LSTMCell
-        self.init_h_word_dec = nn.Linear(encoder_features_resized_dim, decoder_dim)  # linear layer to find initial hidden state of LSTMCell
-        self.init_c_word_dec = nn.Linear(encoder_features_resized_dim, decoder_dim)  # linear layer to find initial cell state of LSTMCell
+        self.init_h_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
+        self.init_c_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
+        self.init_h_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
+        self.init_c_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
         
         self.sentence_decoder_fc_sizes = [
-            self.hidden_size,  # topic
+            self.hidden_dim,  # topic
             1                 # stop
         ]
-        self.sentence_decoder_fc = nn.Linear(self.hidden_size, sum(self.sentence_decoder))
-
-        self.topic_vector = nn.Linear(decoder_dim, 
-        self.stop_signal = nn.Linear(decoder_dim, 1)
+        self.sentence_decoder_fc = nn.Linear(self.hidden_dim, sum(self.sentence_decoder_fc_sizes))
 
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
@@ -91,7 +89,7 @@ class BaseDecoderWAttention(nn.Module):
         for p in self.embedding.parameters():
             p.requires_grad = fine_tune
 
-    def init_hidden_state(self, encoder_out):
+    def init_sent_hidden_state(self, encoder_out):
         """
         Creates the initial hidden and cell states for the decoder's LSTM based on the encoded images.
         :param encoder_out: encoded images, a tensor of dimension (batch_size, num_pixels, encoder_dim)
@@ -100,9 +98,20 @@ class BaseDecoderWAttention(nn.Module):
         mean_encoder_out = encoder_out.mean(dim=1)
         h_sent = self.init_h_sentence_dec(mean_encoder_out)  # (batch_size, decoder_dim)
         c_sent = self.init_c_sentence_dec(mean_encoder_out)
-        h_word = self.init_h_sentence_dec(mean_encoder_out)  # (batch_size, decoder_dim)
-        c_word = self.init_c_sentence_dec(mean_encoder_out)
-        return h_sent, c_sent, h_word, c_word
+        return h_sent, c_sent
+
+
+    def init_word_hidden_state(self, hidden_dim):
+        """
+        Creates the initial hidden and cell states for the decoder's LSTM based on the encoded images.
+        :param encoder_out: encoded images, a tensor of dimension (batch_size, num_pixels, encoder_dim)
+        :return: hidden state, cell state
+        """
+        h_word = self.init_h_sentence_dec(hidden_dim)  # (batch_size, decoder_dim)
+        c_word = self.init_c_sentence_dec(hidden_dim)
+        return h_word, c_word
+
+
 
     def set_teacher_forcing_usage(self, value):
         self.use_tf_as_input = value
