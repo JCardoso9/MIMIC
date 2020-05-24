@@ -174,3 +174,16 @@ def getSmoothL1Distance(preds, targets, smoothL1Calculator):
     scores = smoothL1Calculator(preds, targets)
     return torch.mean(scores, dim=1)
 
+def getSentences(caption,word2idx):
+        size = len(caption) 
+        idx_list = [idx + 1 for idx, val in
+            enumerate(caption) if val == word2idx['.']] 
+  
+  
+        res = [caption[i: j] for i, j in
+            zip([0] + idx_list, idx_list + 
+            ([size] if idx_list[-1] != size else []))]
+        res[-2].extend(res[-1])
+        res = res[:-1]
+        return res
+

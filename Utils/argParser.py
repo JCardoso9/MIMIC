@@ -19,8 +19,11 @@ def get_args():
     parser.add_argument('--checkpoint', type=str, default=None , metavar='N',
                         help='Path to the model\'s checkpoint (No checkpoint: empty string)')
 
+    parser.add_argument('--use_img_embedding', type=bool, default=False,
+                        help='use image embedding in loss computation?')
+
     parser.add_argument('--use_classifier_encoder', type=bool, default=False,
-                        help='use custom tf method in continuous model?')
+                        help='use a classifier pre trained in Xray classification?')
 
     parser.add_argument('--classifier_checkpoint', type=str, default=None , metavar='N',
                         help='Path to the model\'s classifier checkpoint (No checkpoint: empty string)')

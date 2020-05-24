@@ -13,7 +13,7 @@ class BaseHierarchicalDecoder(nn.Module):
     Decoder with continuous Outputs.
     """
 
-    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, nr_labels=28, hidden_dim = 256, encoder_dim=1024,
+    def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, nr_labels=28, hidden_dim = 512, encoder_dim=1024,
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
         """
         :param attention_dim: size of attention network
@@ -42,12 +42,14 @@ class BaseHierarchicalDecoder(nn.Module):
 
         self.label_attention = Attention(nr_labels, hidden_dim, attention_dim) 
 
+        self.context_vector = nn.Linear(encoder_dim + nr_labels, hidden_dim)
+
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)
         
         self.resize_encoder_features = nn.Linear(encoder_dim, hidden_dim)
         
-        self.sentence_decoder = nn.LSTMCell(encoder_dim + nr_labels, hidden_dim, bias=True)  # decoding LSTMCell
+        self.sentence_decoder = nn.LSTMCell(hidden_dim, hidden_dim, bias=True)  # decoding LSTMCell
         self.word_decoder = nn.LSTMCell(embed_dim + hidden_dim, hidden_dim, bias=True)
 
         self.init_h_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell

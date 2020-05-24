@@ -16,7 +16,7 @@ class ContinuousDecoder(BaseDecoderWAttention):
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.,
-                 use_custom_tf=False, use_img_embedding=200):
+                 use_custom_tf=False):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -28,15 +28,12 @@ class ContinuousDecoder(BaseDecoderWAttention):
         super(ContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
 
-        self.use_img_embeding = use_img_embedding
+
         self.use_custom_tf = use_custom_tf
         self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs
         self.init_weights()  # initialize some layers with the uniform distribution
-        if (self.use_img_embedding):
-            self.img_embedding = nn.Linear(encoder_dim, embed_dim)
-            self.img_embedding.weight.data.uniform_(-0.1, 0.1)
-
-
+        self.img_embedding = nn.Linear(encoder_dim, embed_dim)
+        self.img_embedding.weight.data.uniform_(-0.1, 0.1)
 #        self.cos  = nn.CosineSimilarity(dim=1, eps=1e-6)
 
 
@@ -121,9 +118,6 @@ class ContinuousDecoder(BaseDecoderWAttention):
 
                 #input =  torch.nn.functional.normalize(preds, p=2, dim=1)
             #input =  (1 - self.use_tf_as_input) * preds + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
-
-        if (self.use_img_embedding):
-            predictions = (predictions, img_embedding(encoder_out.mean(dim=1)))
-
+        predictions = (predictions, img_embedding(encoder_out.mean(dim=1))
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind

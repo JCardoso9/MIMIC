@@ -22,6 +22,16 @@ DISABLE_TEACHER_FORCING = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
+with open("/home/jcardoso/MIMIC/valReportLengthInSentences.json") as json_file:
+    trainReportLengthInSentences = json.load(json_file)
+
+with open("/home/jcardoso/MIMIC/valSentencesLengths.json") as json_file:
+    trainSentencesLengths = json.load(json_file)
+
+
+
+
+
 def main():
     argParser = get_args()
 
@@ -91,7 +101,31 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
 
 
     # For each image
-    for i, (image, caps, caplens, sentences) in enumerate(trainLoader):
+    for i, (image, caps, caplens, studies) in enumerate(trainLoader):
+
+        print(studies)
+
+
+        reportLengths = []
+        sentencesLengths = []
+        for study in studies:
+            reportLengths.append(trainReportLengthInSentences[study])
+            sentencesLengths.append(trainSentencesLengths[study])
+
+        print(reportLengths)
+        print(sentencesLengths)
+        #sentences = getSentences(caps, word2idx)
+        #print(sentences)
+        print(caps)
+        break
+
+
+
+
+
+
+
+
 
 
         # Move to GPU device, if available
@@ -123,9 +157,13 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
         #print(h_sent.shape)
         #print(c_sent.shape)
 
+
+
+
+
         # s is a number less than or equal to k, because sequences are removed from this process once they hit <end>
         while nr_sentences < MAX_REPORT_LENGTH:
-
+        #for t in range(max(sentences)):
 
             print(pred_logits)
             print("------\n")
@@ -141,6 +179,24 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
                                                                 h_sent)
 
             print("AWEL",attention_weighted_label_encoding.shape)
+            print(torch.cat((attention_weighted_visual_encoding, attention_weighted_label_encoding), 1).shape)
+
+            context_vector = decoder.context_vector(torch.cat([attention_weighted_visual_encoding, attention_weighted_label_encoding]
+                              ,dim= 1))
+
+            print(context_vector.shape)
+
+            h_sent, c_sent = decoder.sentence_decoder(
+                context_vector,
+                (h_sent, c_sent))
+
+
+            #h, c = decoder.sentence_decoder(
+            #    context_vector,
+            #    (h[:batch_size_t], c[:batch_size_t]))
+
+            print(h_sent.shape)
+            print(c_sent.shape)
 
 
             sys.exit()

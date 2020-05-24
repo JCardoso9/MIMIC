@@ -56,7 +56,11 @@ def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimize
         decoder_output, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
 
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
-        targets = caps_sorted[:, 1:]
+        if (argParser.use_img_embedding):
+             targets = (caps_sorted[:, 1:], decoder_output[1]
+             decoder_output = decoder_output[0]
+        else:
+             targets = caps_sorted[:, 1:]
 
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this

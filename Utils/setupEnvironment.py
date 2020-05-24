@@ -330,7 +330,7 @@ def setupDataLoaders(args):
         trainLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedTrainCaptionsPath,
            args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
         valLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedValCaptionsPath,
-           args.encodedValCaptionsLengthsPath, args.valImgsPath, transform), batch_size=1, shuffle=True)
+           args.encodedValCaptionsLengthsPath, args.valImgsPath, transform, training=False), batch_size=1, shuffle=True)
 
     else:
         trainLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTrainCaptionsPath,
