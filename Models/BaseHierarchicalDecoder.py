@@ -50,17 +50,18 @@ class BaseHierarchicalDecoder(nn.Module):
         self.resize_encoder_features = nn.Linear(encoder_dim, hidden_dim)
         
         self.sentence_decoder = nn.LSTMCell(hidden_dim, hidden_dim, bias=True)  # decoding LSTMCell
-        self.word_decoder = nn.LSTMCell(embed_dim + hidden_dim, hidden_dim, bias=True)
+        self.word_decoder = nn.LSTMCell(embed_dim, hidden_dim, bias=True)
 
-        self.init_h_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
-        self.init_c_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
-        self.init_h_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
-        self.init_c_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
+        #self.init_h_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
+        #self.init_c_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
+        #self.init_h_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
+        #self.init_c_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
         
         self.sentence_decoder_fc_sizes = [
-            self.hidden_dim,  # topic
+            self.embed_dim,  # topic
             1                 # stop
         ]
+
         self.sentence_decoder_fc = nn.Linear(self.hidden_dim, sum(self.sentence_decoder_fc_sizes))
 
         self.sigmoid = nn.Sigmoid()
@@ -91,26 +92,25 @@ class BaseHierarchicalDecoder(nn.Module):
         for p in self.embedding.parameters():
             p.requires_grad = fine_tune
 
-    def init_sent_hidden_state(self, encoder_out):
+    def init_sent_hidden_state(self, batch_size):
         """
         Creates the initial hidden and cell states for the decoder's LSTM based on the encoded images.
         :param encoder_out: encoded images, a tensor of dimension (batch_size, num_pixels, encoder_dim)
         :return: hidden state, cell state
         """
-        mean_encoder_out = encoder_out.mean(dim=1)
-        h_sent = self.init_h_sentence_dec(mean_encoder_out)  # (batch_size, decoder_dim)
-        c_sent = self.init_c_sentence_dec(mean_encoder_out)
+        h_sent = torch.zeros(batch_size, self.hidden_dim).to(device)  # (batch_size, decoder_dim)
+        c_sent = torch.zeros(batch_size, self.hidden_dim).to(device)
         return h_sent, c_sent
 
 
-    def init_word_hidden_state(self, hidden_dim):
+    def init_word_hidden_state(self, batch_size):
         """
         Creates the initial hidden and cell states for the decoder's LSTM based on the encoded images.
         :param encoder_out: encoded images, a tensor of dimension (batch_size, num_pixels, encoder_dim)
         :return: hidden state, cell state
         """
-        h_word = self.init_h_sentence_dec(hidden_dim)  # (batch_size, decoder_dim)
-        c_word = self.init_c_sentence_dec(hidden_dim)
+        h_word = torch.zeros(batch_size, self.hidden_dim).to(device)  # (batch_size, decoder_dim)
+        c_word = torch.zeros(batch_size, self.hidden_dim).to(device)
         return h_word, c_word
 
 

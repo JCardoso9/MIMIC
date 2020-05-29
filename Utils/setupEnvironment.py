@@ -150,7 +150,7 @@ def setupModel(args):
     criterion = SmoothL1LossWord().to(device)
 
   elif(args.loss == 'SmoothL1WordAndSentence'):
-    criterion = SmoothL1LossWordAndSentence().to(device)
+    criterion = SmoothL1LossWordAndSentence()
 
   elif (args.loss == 'TripleMarginLoss'):
     criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)

@@ -27,7 +27,7 @@ class HierarchicalSoftmaxDecoder(BaseHierarchicalDecoder):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(HierarchicalSoftmaxDecoder, self).__init__(attention_dim, decoder_dim,embed_dim,  vocab_size, sos_embedding, nr_labels, hidden_dim, encoder_dim,
+        super(HierarchicalSoftmaxDecoder, self).__init__(attention_dim, embed_dim,decoder_dim,  vocab_size, sos_embedding, nr_labels, hidden_dim, encoder_dim,
                  dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob)
 
 
