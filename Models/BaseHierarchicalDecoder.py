@@ -2,6 +2,7 @@ import json
 import torch
 from torch import nn
 import torchvision
+from ClassAttention import *
 from Attention import Attention
 from abc import ABC, abstractmethod
 
@@ -40,7 +41,7 @@ class BaseHierarchicalDecoder(nn.Module):
 
         self.visual_attention = Attention(encoder_dim, hidden_dim, attention_dim)  # attention network
 
-        self.label_attention = Attention(nr_labels, hidden_dim, attention_dim) 
+        self.label_attention = ClassAttention(nr_labels, hidden_dim, attention_dim) 
 
         self.context_vector = nn.Linear(encoder_dim + nr_labels, hidden_dim)
 

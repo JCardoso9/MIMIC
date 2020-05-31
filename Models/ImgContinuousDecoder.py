@@ -9,7 +9,7 @@ from BaseDecoderWAttention import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class ContinuousDecoder(BaseDecoderWAttention):
+class ImgContinuousDecoder(BaseDecoderWAttention):
     """
     Decoder with continuous Outputs.
     """
@@ -25,7 +25,7 @@ class ContinuousDecoder(BaseDecoderWAttention):
         :param encoder_dim: feature size of encoded images
         :param dropout: dropout
         """
-        super(ContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
+        super(ImgContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
                  dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
 
 
@@ -118,6 +118,6 @@ class ContinuousDecoder(BaseDecoderWAttention):
 
                 #input =  torch.nn.functional.normalize(preds, p=2, dim=1)
             #input =  (1 - self.use_tf_as_input) * preds + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
-        predictions = (predictions, img_embedding(encoder_out.mean(dim=1))
+        predictions = (predictions, self.img_embedding(encoder_out.mean(dim=1)))
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind

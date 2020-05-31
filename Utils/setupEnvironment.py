@@ -12,6 +12,7 @@ from Attention import *
 from HierarchicalSoftmaxDecoder import *
 from SoftmaxDecoder import *
 from ContinuousDecoder import *
+from ImgContinuousDecoder import *
 from XRayDataset import *
 from HierarchicalXRayDataset import *
 from TrainingEnvironment import *
@@ -68,7 +69,21 @@ def setupModel(args):
   #print(encoder.dim)
   # Create adequate model
   if (args.model == 'Continuous'):
-    decoder = ContinuousDecoder(attention_dim=args.attention_dim,
+
+    if (args.use_img_embedding):
+        decoder = ImgContinuousDecoder(attention_dim=args.attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=args.decoder_dim,
+                                    vocab_size=vocab_size,
+                                    sos_embedding = embeddings[word2idx['<sos>']],
+                                    encoder_dim=encoder.dim,
+                                    dropout=args.dropout,
+                                    use_tf_as_input = args.use_tf_as_input,
+                                    use_scheduled_sampling=args.use_scheduled_sampling,
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
+                                    use_custom_tf=args.use_custom_tf)
+    else:
+        decoder = ContinuousDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
@@ -92,6 +107,7 @@ def setupModel(args):
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
                                     scheduled_sampling_prob=args.initial_scheduled_sampling_prob)
+
 
 
 

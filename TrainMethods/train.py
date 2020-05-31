@@ -57,20 +57,24 @@ def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimize
 
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         if (argParser.use_img_embedding):
-             targets = (caps_sorted[:, 1:], decoder_output[1]
-             decoder_output = decoder_output[0]
+            targets = (caps_sorted[:, 1:], decoder_output[1])
+            decoder_output = decoder_output[0]
         else:
-             targets = caps_sorted[:, 1:]
+            targets = caps_sorted[:, 1:]
 
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this
 
         # Calculate loss
         if argParser.model == 'Continuous':
-            targets = decoder.embedding(targets)
+            if (argParser.use_img_embedding):
+                targets = decoder.embedding(targets[0])
+            else:
+                targets = decoder.embedding(targets)
             if argParser.normalizeEmb:
                 targets = nn.functional.normalize(targets, p=2, dim=1)
                 preds = nn.functional.normalize(decoder_output, p=2, dim=1)
+
             loss = criterion(preds, targets, decode_lengths)
 
         elif argParser.model == 'Softmax':

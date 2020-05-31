@@ -28,10 +28,13 @@ class Attention(nn.Module):
         :param decoder_hidden: previous decoder output, a tensor of dimension (batch_size, decoder_dim)
         :return: attention weighted encoding, weights
         """
+        print("ENC OUT shape",encoder_out.shape)
         att1 = self.encoder_att(encoder_out)  # (batch_size, num_pixels, attention_dim)
+        print("IMG ATT1:", att1.shape)
         att2 = self.decoder_att(decoder_hidden)  # (batch_size, attention_dim)
         att = self.full_att(self.relu(att1 + att2.unsqueeze(1))).squeeze(2)  # (batch_size, num_pixels)
         alpha = self.softmax(att)  # (batch_size, num_pixels)
+        print("IMAGE ALPHA", alpha.shape)
         attention_weighted_encoding = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (batch_size, encoder_dim)
 
         return attention_weighted_encoding, alpha

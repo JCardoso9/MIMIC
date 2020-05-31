@@ -13,6 +13,8 @@ from tqdm import tqdm
 
 from nlgeval import NLGEval
 import numpy
+import time
+
 
 BEAM_SIZE = 4
 MAX_CAPTION_LENGTH = 350
@@ -69,7 +71,25 @@ def main():
     print("done")
 
     
-    references, hypotheses = train(argParser, encoder, decoder, trainLoader, word2idx, idx2word)
+    #for epoch in range(trainingEnvironment.start_epoch, trainingEnvironment.epochs):
+
+#        if epoch > 1 and argParser.use_scheduled_sampling and epoch % argParser.scheduled_sampling_decay_epochs == 0:
+#            scheduled_sampling_prob += argParser.rate_change_scheduled_sampling_prob
+#            decoder.set_scheduled_sampling_prob(scheduled_sampling_prob)
+
+
+ #       if trainingEnvironment.epochs_since_improvement == argParser.early_stop_epoch_threshold:
+ #           break
+
+
+    
+    references, hypotheses = train(argParser, encoder, decoder, trainLoader, word2idx, idx2word, criterion, encoder_optimizer, decoder_optimizer)
+
+  #      references, hypotheses = hierarchical_evaluate_beam(argParser, BEAM_SIZE, encoder, decoder, valLoader, word2idx, idx2word)
+
+        #enc_scheduler.step()
+        #dec_scheduler.step()
+
 
 
     #metrics_dict = nlgeval.compute_metrics(references, hypotheses)
@@ -80,7 +100,7 @@ def main():
       #for metric in metrics_dict:
         #file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
 
-def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
+def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word, criterion, encoder_optimizer, decoder_optimizer):
     """
     Evaluation
 
@@ -88,12 +108,17 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
     :return: BLEU-4 score
     """
 
-    # TODO: Batched Beam Search
-    # Therefore, do not use a batch_size greater than 1 - IMPORTANT!
 
-    decoder.set_teacher_forcing_usage(DISABLE_TEACHER_FORCING)
-    decoder.eval()
-    encoder.eval()
+    decoder.set_teacher_forcing_usage(argParser.use_tf_as_input)
+    decoder.train()  # train mode (dropout and batchnorm is used)
+    encoder.train()
+
+    batch_time = AverageMeter()  # forward prop. + back prop. time
+    data_time = AverageMeter()  # data loading time
+    losses = AverageMeter()  # loss (per word decoded)
+
+    start = time.time()
+
 
     # Lists to store references (true captions), and hypothesis (prediction) for each image
     # references = [[ref1a, ref1b, ref1c]], hypotheses = [hyp1, hyp2, ...]
@@ -152,7 +177,10 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
         #------------------------------------------------------------------------------
         #print(resized_img.shape)
 
-        losses = torch.zeros(batch_size)
+        loss = 0.
+
+        visual_alphas = torch.zeros(batch_size, max(report_lengths), num_pixels).to(device)
+        label_alphas = torch.zeros(batch_size, max(report_lengths), label_probs.shape[1]).to(device)
 
         for t_s in range(max(report_lengths)):
 
@@ -178,10 +206,8 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
 
             #print("SORTED SENT LENGTHS:", sentences_lengths_copy)
             sorted_sentence_lengths, sort_ind_sent = sentences_lengths_copy.sort(dim=0, descending=True)
-
             #print("SORTED SENTENCES:", sentences_list[sort_ind_sent[:unfinished_reports]])
-            sentences_list = sentences_list[sort_ind_sent[:unfinished_reports]].to(device)
-
+            sorted_sentence_list = sentences_list[sort_ind_sent[:unfinished_reports]].to(device)
             #----------------------------MODEL OPERATING-------------------------------------------------------------------
             #encoder_out_copy = encoder_out.clone()
             #label_probas_copy = label_probas.clone()
@@ -190,11 +216,14 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
 
             h_sent, c_sent = decoder.init_sent_hidden_state(unfinished_reports)   # (unfinished_reports, hidden_dim
 
-            attention_weighted_visual_encoding, alpha = decoder.visual_attention(encoder_out[sort_ind[:unfinished_reports]], h_sent[:unfinished_reports])  
+            attention_weighted_visual_encoding, visual_alpha = decoder.visual_attention(encoder_out[sort_ind[:unfinished_reports]], h_sent[:unfinished_reports])  
 
             print("AWEV",attention_weighted_visual_encoding.shape)
+            print(num_pixels)
+            print(visual_alpha.shape)
+            attention_weighted_label_encoding, label_alpha = decoder.label_attention(label_probs[sort_ind[:unfinished_reports]], h_sent[:unfinished_reports])
 
-            attention_weighted_label_encoding, alpha = decoder.label_attention(label_probs[sort_ind[:unfinished_reports]], h_sent[:unfinished_reports])
+            print("LABEL ALHPA SHAPE",label_alpha.shape)
 
             print("AWEL",attention_weighted_label_encoding.shape)
             print(torch.cat((attention_weighted_visual_encoding, attention_weighted_label_encoding), 1).shape)
@@ -213,29 +242,59 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
             #-------------------------------------------------------------------------------------------
 
             input = topic_vector
-            print("FIrst inputs: ", input)
+            #print("FIrst inputs: ", input)
 
-            predictions = torch.zeros(batch_size, max(sentences_lengths[t_s]), vocab_size).to(device)
+            predictions = torch.zeros(unfinished_reports, max(sentences_lengths[t_s]), vocab_size).to(device)
             #print("PREDS SHAPE", predictions.shape)
 
             h_word, c_word = decoder.init_word_hidden_state(unfinished_reports)
             h_word, c_word = decoder.word_decoder(input, (h_word, c_word))
 
-
-            for  t_w in range(max(sentences_lengths[t_s])):
+            sorted_sentence_lengths = (sorted_sentence_lengths -1).tolist() 
+            for  t_w in range(max(sorted_sentence_lengths)):
 
                  unfinished_sentences = sum([l > t_w for l in sorted_sentence_lengths])
 
                  #print("SORT IND", sort_ind[:unfinished_sentences])
                  #print("SORT_IND_SENT", sort_ind_sent[:unfinished_sentences])
-                 input = decoder.embedding(sentences_list[:unfinished_sentences, t_w])
+
+                 #if (random.random() < self.scheduled_sampling_prob):
+                 if (t_w > 0):
+                    preds = torch.argmax(preds[:unfinished_sentences], dim=1)
+                    input = decoder.embedding(preds)
+                 else:
+                    input = decoder.embedding(sorted_sentence_list[:unfinished_sentences, t_w])
 
                  h_word, c_word = decoder.word_decoder(input, (h_word[:unfinished_sentences], c_word[:unfinished_sentences]))
 
                  print("INPUTS:",input.shape)
 
+                 preds = decoder.fc(decoder.dropout(h_word))
 
-            #for sentence_idx in range(len(sentences_list)):
+                 predictions[:unfinished_sentences, t_w, :] = preds
+
+
+            
+            #for sentence_idx in range(len(sorted_sentence_list)):
+                #sorted_sentence_lengths =  sorted_sentence_lengths.tolist()
+            print(predictions.shape)
+            print(sorted_sentence_list)
+            print(sorted_sentence_list.shape)
+            predictions = pack_padded_sequence(predictions, sorted_sentence_lengths[:unfinished_reports], batch_first=True)
+            targets = pack_padded_sequence(sorted_sentence_list, sorted_sentence_lengths[:unfinished_reports], batch_first=True)
+            loss += criterion(predictions.data, targets.data)
+
+            visual_alphas[:unfinished_reports, t_s, :] = visual_alpha
+            label_alphas[:unfinished_reports, t_s, :] = label_alpha
+
+            print("LOSSSSS", loss)
+
+            loss += argParser.alpha_c * ((1. - visual_alphas.sum(dim=1)) ** 2).mean()
+
+            print("L WITH VISUAL" , loss)
+            loss += argParser.alpha_c * ((1. - label_alphas.sum(dim=1)) ** 2).mean()
+
+            print("L WITH ALL",loss)
                 #print("Target shape:", sentences_list[sentence_idx, :sorted_sentence_lengths[sentence_idx]].shape)
                 #print("Preds shape:", predictions[sentence_idx, :sorted_sentence_lengths[sentence_idx], :].shape)
 
@@ -246,7 +305,37 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
             #print("LOSSES", losses)
 
 
-            break
+            #break
+
+        print("LOSS:", loss)
+
+        decoder_optimizer.zero_grad()
+        if encoder_optimizer is not None:
+            encoder_optimizer.zero_grad()
+
+        loss.backward()
+
+        decoder_optimizer.step()
+        if encoder_optimizer is not None:
+            encoder_optimizer.step()
+
+
+         # Keep track of metrics
+        #top5 = accuracy(scores, targets, 5)
+        losses.update(loss.item(), torch.sum(report_lengths))
+        #top5accs.update(top5, sum(decode_lengths))
+        batch_time.update(time.time() - start)
+
+        start = time.time()
+
+        # Print status
+#        if i % argParser.print_freq == 0:
+#            print('Epoch: [{0}][{1}/{2}]\t'
+#                  'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+#                  'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+#                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(train_loader),
+#                                                                          batch_time=batch_time,
+#                                                                          data_time=data_time, loss=losses))
 
 
         break

@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence
+import torch.nn.functional as F
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -50,8 +52,6 @@ class SmoothL1LossWord(nn.Module):
 
 class SmoothL1LossWordAndSentence(nn.Module):
     '''
-      Uses pytorch's cosine embedding loss. Class created to abstract need of
-      using a y vector.
     '''
 
     def __init__(self, beta=0.5):
@@ -65,23 +65,22 @@ class SmoothL1LossWordAndSentence(nn.Module):
       word_loss = 0.
       sentence_loss = 0.
       batch_size = targets.shape[0]
-      #unpadded_targets = targets[:,:decode_lengths,:]
-      #unpadded_preds = preds[:,:decode_lengths,:]
       for sentence_idx in range(batch_size):
-          word_loss += self.criterion(preds[sentence_idx, :decode_lengths[sentence_idx],:], targets[sentence_idx, :decode_lengths[sentence_idx],:])
-          
+          #word_loss += self.criterion(preds[sentence_idx, :decode_lengths[sentence_idx],:], targets[sentence_idx, :decode_lengths[sentence_idx],:])
 
-          #print(torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim= 0).shape)
           sentence_loss += self.criterion(torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim= 0),
                                           torch.mean(targets[sentence_idx, :decode_lengths[sentence_idx],:], dim=0))
 
 
-      #print((1 - self.beta) * (word_loss / batch_size))
-      #print(self.beta * (sentence_loss / batch_size))
-      return  (word_loss / batch_size) + 0 * (sentence_loss / batch_size)
-      #return (1 - self.beta) * (word_loss / batch_size) +   0 *self.beta * (sentence_loss / batch_size)
-#      return 1
+      preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
+      targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
+      loss = self.criterion(preds.data, targets.data)
+      #print("LOSS:", loss)
+      #print("Word loss:", word_loss/batch_size)
 
+
+      #return  word_loss /batch_size +  (sentence_loss / batch_size)
+      return loss + sentence_loss / batch_size
 
 class SyntheticTripletLoss(nn.Module):
     """
@@ -102,6 +101,9 @@ class SyntheticTripletLoss(nn.Module):
       :param preds: predicted embeddings, a tensor of dimensions (sum length captions in batch, embedding_dim)
       :return: mean loss across all words
       '''
+
+      preds = pack_padded_sequence(preds, decode_lengths, batch_first=True).data
+      targets = pack_padded_sequence(targets, decode_lengths, batch_first=True).data
 
       # Create a negative example by projecting the predicted embedding to the target embedding and use that
       # to find component of the pred embedding orthogonal to the target embedding
@@ -218,20 +220,21 @@ class SmoothL1LossWordAndSentenceAndImage(nn.Module):
       image_embedding_loss = 0.
 
       batch_size = targets[0].shape[0]
-      #unpadded_targets = targets[:,:decode_lengths,:]
-      #unpadded_preds = preds[:,:decode_lengths,:]
       for sentence_idx in range(batch_size):
-          word_loss += self.criterion(preds[sentence_idx, :decode_lengths[sentence_idx],:], targets[0][sentence_idx, :decode_lengths[sentence_idx],:])
+          #word_loss += self.criterion(preds[sentence_idx, :decode_lengths[sentence_idx],:], targets[0][sentence_idx, :decode_lengths[sentence_idx],:])
 
-
-          #print(torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim= 0).shape)
           pred_sentence_mean = torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim=0)
+          target_sentence_mean = torch.mean(target[0][sentence_idx, :decode_lengths[sentence_idx],:], dim=0)
 
-          sentence_loss += self.criterion(pred_sentence_mean,
-                                          torch.mean(targets[0][sentence_idx, :decode_lengths[sentence_idx],:], dim=0))
+          sentence_loss += self.criterion(pred_sentence_mean,target_sentence_mean)
 
-          image_embedding_loss += self.criterion(pred_sentence_mean, torch.nn.functional.normalize(targets[1][sentence_idx], p=2))
+          pred_image_embedding_loss += self.criterion(pred_sentence_mean, torch.nn.functional.normalize(targets[1][sentence_idx], p=2))
 
-      #print((1 - self.beta) * (word_loss / batch_size))
-      #print(self.beta * (sentence_loss / batch_size))
-      return  (word_loss / batch_size) + (sentence_loss / batch_size) + image_embedding_loss /batch_size
+          target_image_embedding_loss += self.criterion(target_sentence_mean, torch.nn.functional.normalize(targets[1][sentence_idx], p=2))
+
+      preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
+      targets = pack_padded_sequence(targets[0], decode_lengths, batch_first=True)
+      loss = self.criterion(preds.data, targets.data)
+
+
+      return  loss + (sentence_loss / batch_size) + pred_image_embedding_loss /batch_size+  target_image_embedding_loss /batch_size
