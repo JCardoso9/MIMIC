@@ -91,6 +91,9 @@ class SoftmaxDecoder(BaseDecoderWAttention):
             # When not using teacher forcing or with scheduled sampling prob
             # use the embedding for the previous generated word
             if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
+                print("before softmax", preds)
+                preds = F.log_softmax(preds, dim=1)
+                print("after softmax", preds)
                 _, preds = torch.max(preds, dim=1)
                 input = self.embedding(preds)
 

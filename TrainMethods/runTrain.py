@@ -8,7 +8,7 @@ from argParser import *
 from TrainingEnvironment import *
 from generalUtilities import *
 from train import *
-from beam_caption import *
+from refactored_beam_caption import *
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -32,17 +32,39 @@ def main():
     if not os.path.isdir('../Experiments/' + argParser.model_name):
         os.mkdir('../Experiments/' + argParser.model_name)
 
+
+    print(argParser)
+
+    modelInfo = None
+    classifierInfo = None
+
+    if (argParser.checkpoint is not None):
+        modelInfo = torch.load(argParser.checkpoint)
+
+    if (argParser.use_classifier_encoder) and modelInfo is None:
+        classifierInfo = torch.load(argParser.classifier_checkpoint)
+
+    if not os.path.isdir('../Experiments/' + argParser.model_name):
+        os.mkdir('../Experiments/' + argParser.model_name)
+
     trainingEnvironment = TrainingEnvironment(argParser)
 
-    encoder, decoder, criterion, embeddings, encoder_optimizer, decoder_optimizer, dec_scheduler, enc_scheduler, idx2word, word2idx = setupModel(argParser)
+    encoder, decoder = setupEncoderDecoder(argParser, modelInfo, classifierInfo)
 
-    # Create data loaders
+    encoder_optimizer, decoder_optimizer = setupOptimizers(encoder, decoder, argParser, modelInfo)
+
+    decoder_scheduler, encoder_scheduler = setupSchedulers(encoder_optimizer, decoder_optimizer, argParser)
+
+    criterion = setupCriterion(argParser.loss)
+
     trainLoader, valLoader = setupDataLoaders(argParser)
 
-    cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
-
+    # Load word <-> embeddings matrix index correspondence dictionaries
+    idx2word, word2idx = loadWordIndexDicts(argParser)
 
     scheduled_sampling_prob = decoder.scheduled_sampling_prob
+
+    cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
     for epoch in range(trainingEnvironment.start_epoch, trainingEnvironment.epochs):
 

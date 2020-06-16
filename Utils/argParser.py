@@ -89,7 +89,7 @@ def get_args():
                         default=512, help='define decoder dim')
 
     parser.add_argument('--hidden_dim', type=int,
-                        default=256, help='define decoder dim')
+                        default=512, help='define decoder dim')
 
 
     parser.add_argument('--dropout', type=float, default=0.5,

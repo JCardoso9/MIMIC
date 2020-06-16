@@ -1,9 +1,11 @@
 import sys
 sys.path.append('../Utils/')
 sys.path.append('../')
+sys.path.append('../TestMethods/')
 
 from setupEnvironment import *
 from argParser import *
+from hierarchical_greedy_caption import *
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
@@ -12,6 +14,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 from nlgeval import NLGEval
+import numpy
+import time
+
 
 BEAM_SIZE = 4
 MAX_CAPTION_LENGTH = 350
@@ -22,13 +27,14 @@ DISABLE_TEACHER_FORCING = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
-with open("/home/jcardoso/MIMIC/valReportLengthInSentences.json") as json_file:
+with open("/home/jcardoso/MIMIC/trainReportLengthInSentences.json") as json_file:
     trainReportLengthInSentences = json.load(json_file)
 
-with open("/home/jcardoso/MIMIC/valSentencesLengths.json") as json_file:
+with open("/home/jcardoso/MIMIC/trainSentencesLengths.json") as json_file:
     trainSentencesLengths = json.load(json_file)
 
-
+with open("/home/jcardoso/MIMIC/trainSentences.json") as json_file:
+    trainSentences = json.load(json_file)
 
 
 
@@ -46,6 +52,13 @@ def main():
     if (argParser.use_classifier_encoder) and modelInfo is None:
         classifierInfo = torch.load(argParser.classifier_checkpoint)
 
+    if not os.path.isdir('../Experiments/' + argParser.model_name):
+        os.mkdir('../Experiments/' + argParser.model_name)
+
+    trainingEnvironment = TrainingEnvironment(argParser)
+
+    cudnn.benchmark = True
+
 
     encoder, decoder = setupEncoderDecoder(argParser, modelInfo, classifierInfo)
 
@@ -55,6 +68,8 @@ def main():
 
     criterion = setupCriterion(argParser.loss)
 
+    binary_criterion = nn.BCEWithLogitsLoss()
+
     trainLoader, valLoader = setupDataLoaders(argParser)
 
     # Load word <-> embeddings matrix index correspondence dictionaries
@@ -63,22 +78,63 @@ def main():
     # Create NlG metrics evaluator
     nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
-
-    print("done")
+    scheduled_sampling_prob = decoder.scheduled_sampling_prob
 
     
-    references, hypotheses = train(argParser, encoder, decoder, trainLoader, word2idx, idx2word)
+    for epoch in range(trainingEnvironment.start_epoch, trainingEnvironment.epochs):
+
+        if epoch > 1 and argParser.use_scheduled_sampling and epoch % argParser.scheduled_sampling_decay_epochs == 0:
+            scheduled_sampling_prob += argParser.rate_change_scheduled_sampling_prob
+            decoder.set_scheduled_sampling_prob(scheduled_sampling_prob)
 
 
-    #metrics_dict = nlgeval.compute_metrics(references, hypotheses)
+        if trainingEnvironment.epochs_since_improvement == argParser.early_stop_epoch_threshold:
+            break
 
-    #refs_path, preds_path = save_references_and_predictions(references, hypotheses, argParser.model_name, "Beam")
 
-    #with open('../Experiments/' + argParser.model_name + "/BeamTestResults.txt", "w+") as file:
-      #for metric in metrics_dict:
-        #file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
+    
+        train(argParser, encoder, decoder, trainLoader, word2idx, idx2word, criterion, encoder_optimizer, decoder_optimizer, binary_criterion, epoch)
 
-def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
+ #      references, hypotheses = hierarchical_evaluate_beam(argParser, BEAM_SIZE, encoder, decoder, valLoader, word2idx, idx2word)
+        references, hypotheses = evaluate_greedy(argParser, encoder, decoder, valLoader, word2idx, idx2word)
+
+        encoder_scheduler.step()
+        decoder_scheduler.step()
+
+        metrics_dict = nlgeval.compute_metrics(references, hypotheses)
+        print(metrics_dict)
+
+        with open('../Experiments/' + argParser.model_name + "/metrics.txt", "a+") as file:
+            file.write("Epoch " + str(epoch) + " results:\n")
+            for metric in metrics_dict:
+                file.write(metric + ":" + str(metrics_dict[metric]) + "\n")
+            file.write("------------------------------------------\n")
+
+        recent_bleu4 = metrics_dict['CIDEr']
+
+    #     Check if there was an improvement
+        is_best = recent_bleu4 > trainingEnvironment.best_bleu4
+
+        trainingEnvironment.best_bleu4 = max(recent_bleu4, trainingEnvironment.best_bleu4)
+
+        print("Best BLEU: ", trainingEnvironment.best_bleu4)
+        if not is_best:
+            trainingEnvironment.epochs_since_improvement += 1
+            print("\nEpochs since last improvement: %d\n" % (trainingEnvironment.epochs_since_improvement,))
+        else:
+            trainingEnvironment.epochs_since_improvement = 0
+
+
+#        recent_bleu4 = 0
+#        is_best = True
+#        metrics_dict = {}
+
+        # Save checkpoint
+        save_checkpoint(argParser.model_name, epoch, trainingEnvironment.epochs_since_improvement, encoder.state_dict(), decoder.state_dict(), encoder_optimizer.state_dict(),
+                        decoder_optimizer.state_dict(), recent_bleu4, is_best, metrics_dict, trainingEnvironment.best_loss)
+
+
+def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word, criterion, encoder_optimizer, decoder_optimizer, binary_criterion, epoch):
     """
     Evaluation
 
@@ -86,12 +142,17 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
     :return: BLEU-4 score
     """
 
-    # TODO: Batched Beam Search
-    # Therefore, do not use a batch_size greater than 1 - IMPORTANT!
 
-    decoder.set_teacher_forcing_usage(DISABLE_TEACHER_FORCING)
-    decoder.eval()
-    encoder.eval()
+    decoder.set_teacher_forcing_usage(argParser.use_tf_as_input)
+    decoder.train()  # train mode (dropout and batchnorm is used)
+    encoder.train()
+
+    batch_time = AverageMeter()  # forward prop. + back prop. time
+    data_time = AverageMeter()  # data loading time
+    losses = AverageMeter()  # loss (per word decoded)
+
+    start = time.time()
+
 
     # Lists to store references (true captions), and hypothesis (prediction) for each image
     # references = [[ref1a, ref1b, ref1c]], hypotheses = [hyp1, hyp2, ...]
@@ -103,32 +164,35 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
     # For each image
     for i, (image, caps, caplens, studies) in enumerate(trainLoader):
 
-        print(studies)
+        data_time.update(time.time() - start)
 
-
-        reportLengths = []
-        sentencesLengths = []
+        #print(studies)
+        #print(caps.shape)
+        #print(caps)
+        #print("-----------------------------")
+        report_sentences = []
+        report_lengths = []
+        sentences_lengths = []
         for study in studies:
-            reportLengths.append(trainReportLengthInSentences[study])
-            sentencesLengths.append(trainSentencesLengths[study])
+            report_sentences.append(trainSentences[study])
+            sentences_lengths.append(trainSentencesLengths[study])
+            report_lengths.append(trainReportLengthInSentences[study])
+           
 
-        print(reportLengths)
-        print(sentencesLengths)
-        #sentences = getSentences(caps, word2idx)
-        #print(sentences)
-        print(caps)
-        break
+        for idx in range(len(sentences_lengths)):
+            sentences_lengths[idx] = torch.LongTensor(sentences_lengths[idx]) + 1
 
+        sentences_lengths = pad_sequence(sentences_lengths)
 
+        report_lengths = torch.LongTensor(report_lengths)
 
-
-
-
-
-
+        #print(report_sentences)
+        #print(report_lengths)
+        #print(sentences_lengths)       
 
 
-        # Move to GPU device, if available
+         #-------------------MODEL OPERATING----------------------------------------
+         # Move to GPU device, if available
         image = image.to(device)  # (1, 3, 256, 256)
 
         # Encode
@@ -137,158 +201,281 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word):
         encoder_dim = encoder_out.size(3)
         batch_size = encoder_out.shape[0]
 
+        label_probs = torch.sigmoid(pred_logits)
+
+
         # Flatten encoding
         encoder_out = encoder_out.view(batch_size, -1, encoder_dim)  # (1, num_pixels, encoder_dim)
         num_pixels = encoder_out.size(1)
 
-        # We'll treat the problem as having a batch size of k
-
-        # Tensor to store top k previous words at each step; now they're just <start>
-
-        #print(encoder_out.mean(dim=1).shape)
-
         resized_img = decoder.resize_encoder_features(encoder_out.mean(dim=1))
-
+        #------------------------------------------------------------------------------
         #print(resized_img.shape)
 
-        nr_sentences = 0
-        h_sent, c_sent = decoder.init_sent_hidden_state(encoder_out)
+        loss = 0.
 
-        #print(h_sent.shape)
-        #print(c_sent.shape)
+        h_sent, c_sent = decoder.init_sent_hidden_state(batch_size)   # (unfinished_reports, hidden_d
 
 
+        visual_alphas = torch.zeros(batch_size, max(report_lengths), num_pixels).to(device)
+        label_alphas = torch.zeros(batch_size, max(report_lengths), label_probs.shape[1]).to(device)
+
+        #print("NEW BATCH")
+
+        #print(report_lengths)
+        #print("SUMMED", sum(report_lengths))
+
+        for t_s in range(max(report_lengths)):
+
+            unfinished_reports = sum([l > t_s for l in report_lengths])
+            #print("Sentence :", t_s)
+            #print("Unfinished report :", unfinished_reports)
+
+            sorted_report_lengths, sort_ind = report_lengths.sort(dim=0, descending=True)
+
+            #print("Sentences LEnght:", sentences_lengths[t_s])
+            #print(sort_ind)
+
+            sentences_list = []
+            for idx in range(unfinished_reports):
+                sentences_list.append(report_sentences[sort_ind[idx]][t_s])
+
+            sentences_list = [torch.LongTensor(i) for i in sentences_list]
+            sentences_list = pad_sequence(sentences_list, batch_first=True, padding_value=word2idx['<pad>'])
+            #print(sentences_list)
 
 
+            sentences_lengths_copy = sentences_lengths[t_s].clone()
+            sentences_lengths_copy = sentences_lengths_copy[sort_ind]
 
-        # s is a number less than or equal to k, because sequences are removed from this process once they hit <end>
-        while nr_sentences < MAX_REPORT_LENGTH:
-        #for t in range(max(sentences)):
+            #print("SORTED SENT LENGTHS:", sentences_lengths_copy)
+            sorted_sentence_lengths, sort_ind_sent = sentences_lengths_copy.sort(dim=0, descending=True)
+            #print("SORTED SENTENCES:", sentences_list[sort_ind_sent[:unfinished_reports]])
+            sorted_sentence_list = sentences_list[sort_ind_sent[:unfinished_reports]].to(device)
+            #----------------------------MODEL OPERATING-------------------------------------------------------------------
+            #encoder_out_copy = encoder_out.clone()
+            #label_probas_copy = label_probas.clone()
+            #encoder_out_copy = encoder_out_copy[sort_ind]
+            #label_probas_copy = label_probas_copy[sort_ind]
 
-            print(pred_logits)
-            print("------\n")
-            print(torch.sigmoid(pred_logits))
-            print(pred_logits.shape)
-            print("Enc OUT",encoder_out.shape)
-            attention_weighted_visual_encoding, alpha = decoder.visual_attention(encoder_out,
-                                                                h_sent)  #ADD BATCH!!!!!!
+            #h_sent, c_sent = decoder.init_sent_hidden_state(unfinished_reports)   # (unfinished_reports, hidden_dim
 
-            print("AWEV",attention_weighted_visual_encoding.shape)
+            attention_weighted_visual_encoding, visual_alpha = decoder.visual_attention(encoder_out[sort_ind[:unfinished_reports]], h_sent[:unfinished_reports])
 
-            attention_weighted_label_encoding, alpha = decoder.label_attention(pred_logits,
-                                                                h_sent)
+            #print("AWEV",attention_weighted_visual_encoding.shape)
+            #print(num_pixels)
+            #print(visual_alpha.shape)
+            attention_weighted_label_encoding, label_alpha = decoder.label_attention(label_probs[sort_ind[:unfinished_reports]], h_sent[:unfinished_reports])
 
-            print("AWEL",attention_weighted_label_encoding.shape)
-            print(torch.cat((attention_weighted_visual_encoding, attention_weighted_label_encoding), 1).shape)
+            #print("LABEL ALHPA SHAPE",label_alpha.shape)
 
-            context_vector = decoder.context_vector(torch.cat([attention_weighted_visual_encoding, attention_weighted_label_encoding]
+            #print("AWEL",attention_weighted_label_encoding.shape)
+            #print(torch.cat((attention_weighted_visual_encoding, attention_weighted_label_encoding), 1).shape)
+
+            context_vector = decoder.context_vector_fc(torch.cat([attention_weighted_visual_encoding, attention_weighted_label_encoding]
                               ,dim= 1))
 
-            print(context_vector.shape)
+            #print("context_vector :", context_vector.shape)
 
-            h_sent, c_sent = decoder.sentence_decoder(
-                context_vector,
-                (h_sent, c_sent))
+            prev_h_sent = h_sent[:unfinished_reports]
 
+            h_sent, c_sent = decoder.sentence_decoder(context_vector, (h_sent[:unfinished_reports], c_sent[:unfinished_reports]))
 
-            #h, c = decoder.sentence_decoder(
-            #    context_vector,
-            #    (h[:batch_size_t], c[:batch_size_t]))
+            topic_vector = decoder.topic_vector(decoder.tanh(decoder.context_vector_W_h_t(h_sent[:unfinished_reports]) + decoder.context_vector_W(context_vector)))
 
-            print(h_sent.shape)
-            print(c_sent.shape)
+            stop_prob = decoder.stop(decoder.tanh(decoder.stop_h_1(prev_h_sent) + decoder.stop_h(h_sent[:unfinished_reports])))
+            #print("OSRT IND SNENT", sort_ind_sent)
 
+            #topic_vector, stop_prob = decoder.sentence_decoder_fc(decoder.dropout(h_sent)).split(decoder.sentence_decoder_fc_sizes, 1)
 
-            sys.exit()
+            #print("topic_vector :", topic_vector.shape)
+            #print("stop prob:", stop_prob.shape)
+            #-------------------------------------------------------------------------------------------
 
-            embeddings = decoder.embedding(k_prev_words).squeeze(1)  # (s, embed_dim)
+            #input = topic_vector
+            #print("FIrst inputs: ", input)
 
-            awe, _ = decoder.attention(encoder_out, h)  # (s, encoder_dim), (s, num_pixels)
+            predictions = torch.zeros(unfinished_reports, max(sentences_lengths[t_s]), vocab_size).to(device)
+            #print("PREDS SHAPE", predictions.shape)
 
-            gate = decoder.sigmoid(decoder.f_beta(h))  # gating scalar, (s, encoder_dim)
-            awe = gate * awe
+            h_word, c_word = decoder.init_word_hidden_state(unfinished_reports)
+            #h_word, c_word = decoder.word_decoder(topic_vector, (h_word, c_word))
 
-            h, c = decoder.decode_step(torch.cat([embeddings, awe], dim=1), (h, c))  # (s, decoder_dim)
+            input = decoder.sos_embedding.expand(unfinished_reports, decoder.embed_dim).to(device)
 
-            if (argParser.model == "Softmax"):
-                scores = decoder.fc(h)  # (s, vocab_size)
-                scores = F.log_softmax(scores, dim=1)
-
-            elif (argParser.model == "Continuous"):
-                preds = decoder.fc(h) #(s, embed_dim)
-                preds = nn.functional.normalize(preds, p=2, dim=1)
-
-                # With normalized vectors dot product = cosine similarity
-                scores = torch.mm(preds, decoder.embedding.weight.T)  #(s,vocab_size)
+            sorted_sentence_lengths = (sorted_sentence_lengths -1).tolist()
+            #print("SENTENCES:",sorted_sentence_list)
+            unfinished_sentences = unfinished_reports
+            topic_vector = topic_vector[sort_ind_sent[:unfinished_reports]]
 
 
-            # Add
-            scores = top_k_scores.expand_as(scores) + scores  # (s, vocab_size)
+            for  t_w in range(max(sorted_sentence_lengths)):
 
-            # For the first step, all k points will have the same scores (since same k previous words, h, c)
-            if step == 1:
-                top_k_scores, top_k_words = scores[0].topk(k, 0, True, True)  # (s)
-            else:
-                # Unroll and find top scores, and their unrolled indices
-                top_k_scores, top_k_words = scores.view(-1).topk(k, 0, True, True)  # (s)
+                 #unfinished_sentences = sum([l > t_w for l in sorted_sentence_lengths])
 
-            # Convert unrolled indices to actual indices of scores
-            prev_word_inds = top_k_words / vocab_size  # (s)
-            next_word_inds = top_k_words % vocab_size  # (s)
+                 #print("SORT IND", sort_ind[:unfinished_sentences])
+                 #print("SORT_IND_SENT", sort_ind_sent[:unfinished_sentences])
+                 #print(input.shape)
+                 #print("topic", topic_vector[:unfinished_sentences].shape)
+                 
+                 h_word, c_word = decoder.word_decoder(torch.cat([topic_vector[:unfinished_sentences], input],1), (h_word[:unfinished_sentences], c_word[:unfinished_sentences]))
 
-            # Add new words to sequences
-            seqs = torch.cat([seqs[prev_word_inds], next_word_inds.unsqueeze(1)], dim=1)  # (s, step+1)
+                 preds = decoder.fc(decoder.dropout(h_word))
 
-            # Which sequences are incomplete (didn't reach <eoc>)?
-            incomplete_inds = [ind for ind, next_word in enumerate(next_word_inds) if
-                               next_word != word2idx['<eoc>']]
-            complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
+                 predictions[:unfinished_sentences, t_w, :] = preds
 
-            # Set aside complete sequences
-            if len(complete_inds) > 0:
-                complete_seqs.extend(seqs[complete_inds].tolist())
-                complete_seqs_scores.extend(top_k_scores[complete_inds])
-            k -= len(complete_inds)  # reduce beam length accordingly
+                 unfinished_sentences = sum([l > t_w for l in sorted_sentence_lengths])
 
-            # Proceed with incomplete sequences
-            if k == 0:
-                break
-            seqs = seqs[incomplete_inds]
-            h = h[prev_word_inds[incomplete_inds]]
-            c = c[prev_word_inds[incomplete_inds]]
-            encoder_out = encoder_out[prev_word_inds[incomplete_inds]]
-            top_k_scores = top_k_scores[incomplete_inds].unsqueeze(1)
-            k_prev_words = next_word_inds[incomplete_inds].unsqueeze(1)
+                 if t_w > 0 and (random.random() < decoder.scheduled_sampling_prob):
+                 #if (t_w > 0):
+                    preds = F.log_softmax(preds, dim=1)
+                    preds = torch.argmax(preds[:unfinished_sentences], dim=1)
+                    #print("Preds:", preds)
+                    input = decoder.embedding(preds)
+                 else:
+                    #print("INPUTS:",sorted_sentence_list[:unfinished_sentences, t_w])
+                    input = decoder.embedding(sorted_sentence_list[:unfinished_sentences, t_w])
+                 #h_word, c_word = decoder.word_decoder(input, (h_word[:unfinished_sentences], c_word[:unfinished_sentences]))
 
-            # Break if things have been going on too long
-            if step > MAX_CAPTION_LENGTH:
-                break
-            step += 1
 
-        # If MAX CAPTION LENGTH has been reached and no sequence has reached the eoc
-        # there will be no complete seqs, use the incomplete ones
-        if k == beam_size:
-            complete_seqs.extend(seqs[[incomplete_inds]].tolist())
-            complete_seqs_scores.extend(top_k_scores[[incomplete_inds]])
 
-        # Choose best sequence overall
-        i = complete_seqs_scores.index(max(complete_seqs_scores))
-        seq = complete_seqs[i]
+                 #print("INPUTS:",input.shape)
 
-        # References
-        ref = [w for w in caps[0].tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
-        references[0].append(decodeCaption(ref, idx2word))
+                 #preds = decoder.fc(decoder.dropout(h_word))
 
-        # Hypotheses
-        seq = [w for w in seq if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
-        hypotheses.append(decodeCaption(seq, idx2word))
+                 #predictions[:unfinished_sentences, t_w, :] = preds
 
-        #print("REFS: ", references)
-        #print("HIPS: ", hypotheses)
-        assert len(references[0]) == len(hypotheses)
+                 #preds1 = F.log_softmax(preds, dim=1)
+                 #preds1 = torch.argmax(preds1[:unfinished_sentences], dim=1)
+                 #print("Preds:", preds1)
+            #sys.exit()
+            
+            #for sentence_idx in range(len(sorted_sentence_list)):
+                #sorted_sentence_lengths =  sorted_sentence_lengths.tolist()
+            #print(predictions.shape)
+            #print(sorted_sentence_list)
+            #print(sorted_sentence_list.shape)
+
+            stop_targets = torch.zeros(unfinished_reports, dtype=torch.float).to(device)
+            stop_targets[ (t_s +1) == sorted_report_lengths[:unfinished_reports]] = 1.
+            #print("Stop Targets" , stop_targets)
+            stop_targets.unsqueeze_(1)
+            #print("Stop Targets shape", stop_targets.shape )
+
+            #print(t_s)
+            #print(sorted_report_lengths)
+            #stop_prob_target = ((t_s + 1) / 1.0) / sorted_report_lengths[:unfinished_reports].type(torch.FloatTensor)
+            #print("STOP PROB TARGETS: ", stop_prob_target)
+
+            #print("PREDICTED STOP PROBS:", stop_prob)
+            #print(stop_prob.shape)
+            #stop_prob = decoder.sigmoid(stop_prob)
+            #print("SOFTMAXED STOP PROBS:", stop_prob)
+            #print("SOFTMAXED STOP PROBS shape:", stop_prob.shape)
+
+            #print("stop prob loss:" , binary_criterion(stop_prob, stop_targets))
+            loss += 5* binary_criterion(stop_prob, stop_targets)
+            #print(predictions.shape)
+#            if i % 500 == 0:
+#                #print(F.log_softmax(predictions[:unfinished_reports,:,:], dim=1))
+#                print("PREDS SHAPE:", torch.argmax(F.log_softmax(predictions[:unfinished_reports,:,:], dim=1), dim=2).shape)
+#                print("PREDS",torch.argmax(F.log_softmax(predictions[:unfinished_reports,:,:], dim=1), dim=2))
+#                print("---------------------------------------------------------")
+#                print("TARGETS SHAPE",sorted_sentence_list.shape)
+#                print("targets ", sorted_sentence_list)
+
+            total_loss = 0.
+
+            for sentence_idx in range(unfinished_reports):
+                #print("preds.shape", predictions.shape)
+                #print("preds", predictions[sentence_idx, :sorted_sentence_lengths[sentence_idx]])
+                #print("preds shape", predictions[sentence_idx, :sorted_sentence_lengths[sentence_idx]].shape)
+
+                #print("targets", sorted_sentence_list[sentence_idx, :sorted_sentence_lengths[sentence_idx]])
+                #print("targets shape", sorted_sentence_list[sentence_idx, :sorted_sentence_lengths[sentence_idx]].shape)
+                sentences_loss = criterion(predictions[sentence_idx, :sorted_sentence_lengths[sentence_idx]], sorted_sentence_list[sentence_idx, :sorted_sentence_lengths[sentence_idx]])
+                total_loss += sentences_loss
+#                print("total_loss", total_loss)
+#                print("sentences_loss ", sentences_loss)
+#                print("total loss after div", total_loss / unfinished_reports)
+
+          
+            loss += total_loss / unfinished_reports 
+#            print("loss" , loss)
+
+            #predictions = pack_padded_sequence(predictions, sorted_sentence_lengths[:unfinished_reports], batch_first=True)
+            #print("WIthout sos",sorted_sentence_list[:, 1:])
+            #targets = pack_padded_sequence(sorted_sentence_list, sorted_sentence_lengths[:unfinished_reports], batch_first=True)
+            #loss += criterion(predictions.data, targets.data)
+            #print("LOSSC", lossc)
+
+            #loss += lossc
+
+            visual_alphas[:unfinished_reports, t_s, :] = visual_alpha
+            label_alphas[:unfinished_reports, t_s, :] = label_alpha
+
+  #          print("LOSSSSS", loss)
+
+            #loss +=  argParser.alpha_c * ((1. - visual_alphas.sum(dim=1)) ** 2).mean()
+
+ #           print("L WITH VISUAL" , loss)
+            #loss +=  argParser.alpha_c * ((1. - label_alphas.sum(dim=1)) ** 2).mean() 
+
+#            print("L WITH ALL",loss)
+                #print("Target shape:", sentences_list[sentence_idx, :sorted_sentence_lengths[sentence_idx]].shape)
+                #print("Preds shape:", predictions[sentence_idx, :sorted_sentence_lengths[sentence_idx], :].shape)
+
+
+
+            #losses[sort_ind[sort_ind_sent[:unfinished_sentences]]] +=1 
+            #losses[sort_ind[:unfinished_reports]] += 1
+            #print("LOSSES", losses)
+
+
+            #break
+
+        #print("LOSS:", loss)
+
+        #loss = loss / max(report_lengths)
+
+        decoder_optimizer.zero_grad()
+        if encoder_optimizer is not None:
+            encoder_optimizer.zero_grad()
+
+        loss.backward()
+
+
+#        if argParser.grad_clip is not None:
+#            clip_gradient(decoder_optimizer, argParser.grad_clip)
+#            if encoder_optimizer is not None:
+#                clip_gradient(encoder_optimizer, argParser.grad_clip)
+
+        decoder_optimizer.step()
+        if encoder_optimizer is not None:
+            encoder_optimizer.step()
+
+
+
+
+         # Keep track of metrics
+        losses.update(loss.item(), batch_size)
+        batch_time.update(time.time() - start)
+
+        start = time.time()
+
+        # Print status
+        if i % argParser.print_freq == 0:
+            print('Epoch: [{0}][{1}/{2}]\t'
+                  'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(trainLoader),
+                                                                          batch_time=batch_time,
+                                                                          data_time=data_time, loss=losses))
+
+    path = '../Experiments/' + argParser.model_name + '/trainLosses.txt'
+    writeLossToFile(losses.avg, path)
         #break
 
-    return references, hypotheses
 
 
 if __name__ == '__main__':

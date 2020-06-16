@@ -1,11 +1,11 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso//MIMIC/Experiments/SoftmaxSSFLongerDensenet/BEST.pth.tar
+/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Dense/checkpoint.pth.tar
 --model
-Softmax
+Continuous
 --model_name
-SoftmaxSSFLongerDensenet
+ContinuousSmoothL1Dense
 --batch_size
 1
 --word2idxPath
@@ -21,7 +21,7 @@ SoftmaxSSFLongerDensenet
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMICF.pkl
 --loss
-CrossEntropy
+CosineSimilarity
 --attention_dim
 512
 --decoder_dim

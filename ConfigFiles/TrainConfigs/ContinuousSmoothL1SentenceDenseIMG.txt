@@ -3,7 +3,7 @@ Training
 --model
 Continuous
 --model_name
-ContinuousSmoothL1Classifier
+ContinuousSmoothL1SentenceDenseIMG
 --batch_size
 64
 --word2idxPath
@@ -25,11 +25,11 @@ ContinuousSmoothL1Classifier
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMICF.pkl
 --loss
-SmoothL1
+SmoothL1LossWordAndSentenceAndImage
 --attention_dim
 512
 --decoder_dim
-512
+200
 --dropout
 0.5
 --print_freq
@@ -41,7 +41,7 @@ True
 --encoder_lr
 1e-4
 --decoder_lr
-1e-3
+1e-4
 --epochs
 40
 --lr_threshold
@@ -62,8 +62,7 @@ True
 0.05
 --early_stop_epoch_threshold
 13
---use_classifier_encoder
+--encoder_name
+densenet121
+--use_img_embedding
 1
---classifier_checkpoint
-/home/jcardoso/MIMIC/Experiments/Classifier/BEST.pth.tar
-

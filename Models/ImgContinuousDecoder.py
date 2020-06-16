@@ -32,8 +32,6 @@ class ImgContinuousDecoder(BaseDecoderWAttention):
         self.use_custom_tf = use_custom_tf
         self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs
         self.init_weights()  # initialize some layers with the uniform distribution
-        self.img_embedding = nn.Linear(encoder_dim, embed_dim)
-        self.img_embedding.weight.data.uniform_(-0.1, 0.1)
 #        self.cos  = nn.CosineSimilarity(dim=1, eps=1e-6)
 
 
@@ -65,6 +63,8 @@ class ImgContinuousDecoder(BaseDecoderWAttention):
         # Initialize LSTM state
         h, c = self.init_hidden_state(encoder_out)  # (batch_size, decoder_dim)
 
+        img_embeddings = h
+
         # We won't decode at the <end> position, since we've finished generating as soon as we generate <end>
         # So, decoding lengths are actual lengths - 1
         decode_lengths = (caption_lengths - 1).tolist()
@@ -72,7 +72,6 @@ class ImgContinuousDecoder(BaseDecoderWAttention):
         # Create tensors to hold word predicion scores and alphas
         predictions = torch.zeros(batch_size, max(decode_lengths), self.embed_dim).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
-
 
 
         input = self.sos_embedding.expand(batch_size, self.embed_dim).to(device)
@@ -118,6 +117,8 @@ class ImgContinuousDecoder(BaseDecoderWAttention):
 
                 #input =  torch.nn.functional.normalize(preds, p=2, dim=1)
             #input =  (1 - self.use_tf_as_input) * preds + self.use_tf_as_input * embeddings[:batch_size_t, t, :]
-        predictions = (predictions, self.img_embedding(encoder_out.mean(dim=1)))
+        predictions = (predictions, img_embeddings)
+
+
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind

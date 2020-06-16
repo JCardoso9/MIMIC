@@ -3,9 +3,9 @@ Training
 --model
 Continuous
 --model_name
-ContinuousSmoothL1Sentence
+ContinuousSmoothL1Dense
 --batch_size
-16
+64
 --word2idxPath
 /home/jcardoso/MIMIC/word2idxF.json
 --idx2wordPath
@@ -25,7 +25,7 @@ ContinuousSmoothL1Sentence
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMICF.pkl
 --loss
-SmoothL1WordAndSentence
+SmoothL1
 --attention_dim
 512
 --decoder_dim
@@ -43,7 +43,7 @@ True
 --decoder_lr
 1e-3
 --epochs
-20
+40
 --lr_threshold
 1e-5
 --grad_clip
@@ -63,4 +63,4 @@ True
 --early_stop_epoch_threshold
 13
 --encoder_name
-resnet101
+densenet121

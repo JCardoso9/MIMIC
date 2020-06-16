@@ -1,7 +1,7 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Classifier/BEST.pth.tar
+/home/jcardoso/MIMIC/Experiments/ContinuousSmoothL1Classifier/checkpoint.pth.tar
 --model
 Continuous
 --model_name

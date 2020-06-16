@@ -1,9 +1,9 @@
 --runType
 Training
 --model
-Continuous
+Softmax
 --model_name
-ContinuousSmoothL1Classifier
+SoftmaxSSFLongerClassifierShorter
 --batch_size
 64
 --word2idxPath
@@ -25,7 +25,7 @@ ContinuousSmoothL1Classifier
 --embeddingsPath
 /home/jcardoso/MIMIC/embeddingsMIMICF.pkl
 --loss
-SmoothL1
+CrossEntropy
 --attention_dim
 512
 --decoder_dim
@@ -50,8 +50,6 @@ True
 5.
 --alpha_c
 1.
---use_tf_as_input
-1
 --use_scheduled_sampling
 True
 --scheduled_sampling_prob
@@ -65,5 +63,4 @@ True
 --use_classifier_encoder
 1
 --classifier_checkpoint
-/home/jcardoso/MIMIC/Experiments/Classifier/BEST.pth.tar
-
+/home/jcardoso/MIMIC/Experiments/ClassifierShorter/BEST.pth.tar

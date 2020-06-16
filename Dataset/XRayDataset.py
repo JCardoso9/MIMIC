@@ -71,7 +71,7 @@ class XRayDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return image,  torch.LongTensor(encodedCaption), encodedCaptionLength
+        return image,  torch.LongTensor(encodedCaption), encodedCaptionLength, study
 
 
     # Transform caption comprised of list of words into

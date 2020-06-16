@@ -39,7 +39,7 @@ def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimize
     start = time.time()
 
     # Batches
-    for i, (imgs, caps, caplens) in enumerate(train_loader):
+    for i, (imgs, caps, caplens, _) in enumerate(train_loader):
         data_time.update(time.time() - start)
 
         # Move to GPU, if available
@@ -54,37 +54,42 @@ def train(argParser, train_loader, encoder, decoder, criterion, encoder_optimize
             imgs = encoder(imgs)
 
         decoder_output, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
-
         # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
         if (argParser.use_img_embedding):
-            targets = (caps_sorted[:, 1:], decoder_output[1])
+            img_embeddings =  decoder_output[1]
             decoder_output = decoder_output[0]
-        else:
-            targets = caps_sorted[:, 1:]
+           
+
+        targets = caps_sorted[:, 1:]
 
         # Remove timesteps that we didn't decode at, or are pads
         # pack_padded_sequence is an easy trick to do this
-
         # Calculate loss
         if argParser.model == 'Continuous':
-            if (argParser.use_img_embedding):
-                targets = decoder.embedding(targets[0])
-            else:
-                targets = decoder.embedding(targets)
+            targets = decoder.embedding(targets)
             if argParser.normalizeEmb:
                 targets = nn.functional.normalize(targets, p=2, dim=1)
                 preds = nn.functional.normalize(decoder_output, p=2, dim=1)
+            #print(targets.shape)
 
-            loss = criterion(preds, targets, decode_lengths)
+            if (argParser.use_img_embedding):
+                loss = criterion(preds, (targets,img_embeddings), decode_lengths)
+            else:
+                loss = criterion(preds, targets, decode_lengths)
 
         elif argParser.model == 'Softmax':
             decoder_output = pack_padded_sequence(decoder_output, decode_lengths, batch_first=True)
+            #print(targets)
             targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
             loss = criterion(decoder_output.data, targets.data)
 
 
+        #print(loss)
+
         # Add doubly stochastic attention regularization
         loss += argParser.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+
+        #print("Final loss",loss)
 
         # Back prop.
         decoder_optimizer.zero_grad()

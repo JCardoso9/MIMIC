@@ -51,4 +51,4 @@ True
 --alpha_c
 1.
 --encoder_name
-resnet101
+densenet121

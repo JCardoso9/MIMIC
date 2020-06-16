@@ -38,146 +38,6 @@ import argparse
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def setupModel(args):
-  '''
-    Setup the model according to the mode being used (Training/Testing), 
-    loading checkpoints when necessary.
-    :param args: Argument Parser object with definitions set in a specified config file
-  '''
-
-  # Load embeddings from disk
-  word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk(args.embeddingsPath, args.normalizeEmb)
-  embeddings = embeddings.to(device)
-
-  idx2word, word2idx = loadWordIndexDicts(args)
-
-  if (args.use_classifier_encoder):
-      encoder = ClassifyingEncoder()
-      print("Created Classifier encoder")
-      if (args.checkpoint is  None):
-          print("LOading pre-trained Classifier")
-          classifierInfo = torch.load(args.classifier_checkpoint)
-          encoder.load_state_dict(classifierInfo['encoder'])
-
-  else:
-      print("Created refactored encoder")
-      if (args.encoder_name == 'resnet101'):
-          encoder = Encoder()
-      else:
-          encoder = RefactoredEncoder(args.encoder_name)
-
-  #print(encoder.dim)
-  # Create adequate model
-  if (args.model == 'Continuous'):
-
-    if (args.use_img_embedding):
-        decoder = ImgContinuousDecoder(attention_dim=args.attention_dim,
-                                    embed_dim=embed_dim,
-                                    decoder_dim=args.decoder_dim,
-                                    vocab_size=vocab_size,
-                                    sos_embedding = embeddings[word2idx['<sos>']],
-                                    encoder_dim=encoder.dim,
-                                    dropout=args.dropout,
-                                    use_tf_as_input = args.use_tf_as_input,
-                                    use_scheduled_sampling=args.use_scheduled_sampling,
-                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
-                                    use_custom_tf=args.use_custom_tf)
-    else:
-        decoder = ContinuousDecoder(attention_dim=args.attention_dim,
-                                    embed_dim=embed_dim,
-                                    decoder_dim=args.decoder_dim,
-                                    vocab_size=vocab_size,
-                                    sos_embedding = embeddings[word2idx['<sos>']],
-                                    encoder_dim=encoder.dim,
-                                    dropout=args.dropout,
-                                    use_tf_as_input = args.use_tf_as_input,
-                                    use_scheduled_sampling=args.use_scheduled_sampling,
-                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
-                                    use_custom_tf=args.use_custom_tf)
-
-  elif (args.model == 'Softmax'):
-    #print(encoder.dim)
-    decoder = SoftmaxDecoder(attention_dim=args.attention_dim,
-                                    embed_dim=embed_dim,
-                                    decoder_dim=args.decoder_dim,
-                                    vocab_size=vocab_size,
-                                    sos_embedding = embeddings[word2idx['<sos>']],
-                                    encoder_dim=encoder.dim,
-                                    dropout=args.dropout,
-                                    use_tf_as_input = args.use_tf_as_input,
-                                    use_scheduled_sampling=args.use_scheduled_sampling,
-                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob)
-
-
-
-
-  decoder.load_pretrained_embeddings(embeddings)
-
-
-
-  # Load trained model if checkpoint exists
-  if (args.checkpoint is not None):
-    modelInfo = torch.load(args.checkpoint)
-    decoder.load_state_dict(modelInfo['decoder'])
-    #if (not args.use_classifier_encoder):
-    print("Loaded encoder from the BEST checkpoint")
-    encoder.load_state_dict(modelInfo['encoder'])
-
-
-
-  # Move to GPU, if available
-  decoder = decoder.to(device)
-  encoder = encoder.to(device)
-
-  # Set model to eval mode
-  if (args.runType == "Testing"):
-    decoder.eval()
-    encoder.eval()
-    encoder_optimizer = None
-    decoder_optimizer = None
-    enc_scheduler = None
-    dec_scheduler = None
-
-  # If training, create optimizers. If necessary, load previous checkpoint.
-  # Also check if fine tuning embeddings and/or encoder is necessary
-  elif (args.runType == "Training"):
-    decoder.fine_tune_embeddings(args.fine_tune_embeddings)
-    encoder.fine_tune(args.fine_tune_encoder)
-
-    decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
-                                          lr=args.decoder_lr)
-    encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
-                                          lr=args.encoder_lr) if args.fine_tune_encoder else None
-    if (args.checkpoint is not None):
-      decoder_optimizer.load_state_dict(modelInfo['decoder_optimizer'])
-      encoder_optimizer.load_state_dict(modelInfo['encoder_optimizer'])
-
-    dec_scheduler = torch.optim.lr_scheduler.StepLR(decoder_optimizer, args.lr_decay_epochs, args.lr_decay)
-    enc_scheduler = torch.optim.lr_scheduler.StepLR(encoder_optimizer, args.lr_decay_epochs, args.lr_decay)
-
-  # Create criterion
-  if (args.loss == 'CrossEntropy'):
-    criterion = nn.CrossEntropyLoss().to(device)
-
-  elif (args.loss == 'CosineSimilarity'):
-    criterion = CosineEmbedLoss()
-
-  elif(args.loss == 'SmoothL1'):
-    criterion = SmoothL1LossWord().to(device)
-
-  elif(args.loss == 'SmoothL1WordAndSentence'):
-    criterion = SmoothL1LossWordAndSentence()
-
-  elif (args.loss == 'TripleMarginLoss'):
-    criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)
-
-  return encoder, decoder, criterion, embeddings, encoder_optimizer, decoder_optimizer, dec_scheduler, enc_scheduler, idx2word, word2idx
-
-
-
-
-
-
 def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpoint=None):
   # Load embeddings from disk
   word_map, embeddings, vocab_size, embed_dim = loadEmbeddingsFromDisk(args.embeddingsPath, args.normalizeEmb)
@@ -204,7 +64,22 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
   #print(encoder.dim)
   # Create adequate model
   if (args.model == 'Continuous'):
-    decoder = ContinuousDecoder(attention_dim=args.attention_dim,
+    if (args.use_img_embedding):
+        decoder = ImgContinuousDecoder(attention_dim=args.attention_dim,
+                                    embed_dim=embed_dim,
+                                    decoder_dim=args.decoder_dim,
+                                    vocab_size=vocab_size,
+                                    sos_embedding = embeddings[word2idx['<sos>']],
+                                    encoder_dim=encoder.dim,
+                                    dropout=args.dropout,
+                                    use_tf_as_input = args.use_tf_as_input,
+                                    use_scheduled_sampling=args.use_scheduled_sampling,
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
+                                    use_custom_tf=args.use_custom_tf)
+
+
+    else:
+       decoder = ContinuousDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.decoder_dim,
                                     vocab_size=vocab_size,
@@ -231,6 +106,7 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
                                     scheduled_sampling_prob=args.initial_scheduled_sampling_prob)
 
   elif (args.model == "HierarchicalSoftmax"):
+      print("Created hierarchical decoder")
       decoder = HierarchicalSoftmaxDecoder(attention_dim=args.attention_dim,
                                     embed_dim=embed_dim,
                                     decoder_dim=args.hidden_dim,
@@ -311,6 +187,9 @@ def setupCriterion(loss):
 
   elif(loss == 'SmoothL1WordAndSentence'):
     criterion = SmoothL1LossWordAndSentence().to(device)
+
+  elif(loss == 'SmoothL1LossWordAndSentenceAndImage'):
+    criterion = SmoothL1LossWordAndSentenceAndImage().to(device)
 
   elif (loss == 'TripleMarginLoss'):
     criterion = SyntheticTripletLoss(args.triplet_loss_margin, args.triplet_loss_mode)

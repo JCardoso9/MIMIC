@@ -21,7 +21,7 @@ class CosineEmbedLoss(nn.Module):
       self.criterion = nn.CosineEmbeddingLoss().to(device)
 
 
-    def forward(self, targets, preds, decode_lengths):
+    def forward(self, preds, targets, decode_lengths):
       preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
       targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
       y = torch.ones(targets.data.shape[0]).to(device)
@@ -42,7 +42,7 @@ class SmoothL1LossWord(nn.Module):
       self.criterion = nn.SmoothL1Loss().to(device)
 
 
-    def forward(self, targets, preds, decode_lengths):
+    def forward(self, preds,targets, decode_lengths):
       preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
       targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
       loss = self.criterion(preds.data, targets.data)
@@ -60,7 +60,7 @@ class SmoothL1LossWordAndSentence(nn.Module):
       self.criterion = nn.SmoothL1Loss().to(device)
       self.beta = beta
 
-    def forward(self, targets, preds, decode_lengths):
+    def forward(self, preds, targets, decode_lengths):
 
       word_loss = 0.
       sentence_loss = 0.
@@ -94,7 +94,7 @@ class SyntheticTripletLoss(nn.Module):
       self.mode = mode
 
 
-    def forward(self, targets, preds, decode_lengths):
+    def forward(self, preds, targets, decode_lengths):
       '''
       Can create synthetic examples based on an orthogonal or subtraction basis
       :param targets: target embeddings, a tensor of dimensions (sum length captions in batch, embedding_dim)
@@ -149,7 +149,7 @@ class SyntheticTripletLossSmoothL1Sentence(nn.Module):
       self.mode = mode
       self.criterion =  nn.SmoothL1Loss(reduction='none').to(device)
 
-    def forward(self, targets, preds, decode_lengths):
+    def forward(self, preds, targets, decode_lengths):
       '''
       Can create synthetic examples based on an orthogonal or subtraction basis
       :param targets: target embeddings, a tensor of dimensions (sum length captions in batch, embedding_dim)
@@ -208,33 +208,36 @@ class SmoothL1LossWordAndSentenceAndImage(nn.Module):
     '''
 
     def __init__(self, beta=0.5):
-      super(SmoothL1LossWordAndSentence, self).__init__()
+      super(SmoothL1LossWordAndSentenceAndImage, self).__init__()
       # Loss function
       self.criterion = nn.SmoothL1Loss().to(device)
       self.beta = beta
 
-    def forward(self, targets, preds, decode_lengths):
+    def forward(self, preds, targets,  decode_lengths):
 
       word_loss = 0.
       sentence_loss = 0.
-      image_embedding_loss = 0.
+      pred_image_embedding_loss = 0.
+      target_image_embedding_loss = 0.
 
       batch_size = targets[0].shape[0]
       for sentence_idx in range(batch_size):
           #word_loss += self.criterion(preds[sentence_idx, :decode_lengths[sentence_idx],:], targets[0][sentence_idx, :decode_lengths[sentence_idx],:])
-
           pred_sentence_mean = torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim=0)
-          target_sentence_mean = torch.mean(target[0][sentence_idx, :decode_lengths[sentence_idx],:], dim=0)
+          target_sentence_mean = torch.mean(targets[0][sentence_idx, :decode_lengths[sentence_idx],:], dim=0)
+          #print(targets[1].shape)
+          #print(targets[1])
+          normalized_img_embedding = torch.nn.functional.normalize(targets[1][sentence_idx], p=2, dim=0)
 
           sentence_loss += self.criterion(pred_sentence_mean,target_sentence_mean)
 
-          pred_image_embedding_loss += self.criterion(pred_sentence_mean, torch.nn.functional.normalize(targets[1][sentence_idx], p=2))
+          pred_image_embedding_loss += self.criterion(pred_sentence_mean, normalized_img_embedding)
 
-          target_image_embedding_loss += self.criterion(target_sentence_mean, torch.nn.functional.normalize(targets[1][sentence_idx], p=2))
+          target_image_embedding_loss += self.criterion(target_sentence_mean, normalized_img_embedding)
 
       preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
       targets = pack_padded_sequence(targets[0], decode_lengths, batch_first=True)
       loss = self.criterion(preds.data, targets.data)
 
 
-      return  loss + (sentence_loss / batch_size) + pred_image_embedding_loss /batch_size+  target_image_embedding_loss /batch_size
+      return  loss + (sentence_loss / batch_size) + pred_image_embedding_loss /batch_size + target_image_embedding_loss /batch_size

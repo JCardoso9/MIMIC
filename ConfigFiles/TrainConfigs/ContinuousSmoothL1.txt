@@ -43,7 +43,7 @@ True
 --decoder_lr
 1e-3
 --epochs
-20
+40
 --lr_threshold
 1e-5
 --grad_clip

@@ -31,7 +31,7 @@ class HierarchicalSoftmaxDecoder(BaseHierarchicalDecoder):
                  dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob)
 
 
-        
+        print("decoder_dim:", decoder_dim)        
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
         self.init_weights()  # initialize some layers with the uniform distribution
 

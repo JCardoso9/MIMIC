@@ -1,11 +1,11 @@
 --runType
 Testing
 --checkpoint
-/home/jcardoso//MIMIC/Experiments/SoftmaxSSFLongerDensenet/BEST.pth.tar
+/home/jcardoso/MIMIC/Experiments/HierarchicalSoftmaxTest/checkpoint.pth.tar
 --model
-Softmax
+HierarchicalSoftmax
 --model_name
-SoftmaxSSFLongerDensenet
+HierarchicalSoftmaxTest
 --batch_size
 1
 --word2idxPath
@@ -24,7 +24,7 @@ SoftmaxSSFLongerDensenet
 CrossEntropy
 --attention_dim
 512
---decoder_dim
+--hidden_dim
 512
 --dropout
 0.5
@@ -48,5 +48,5 @@ True
 1.
 --use_tf_as_input
 0
---encoder_name
-densenet121
+--use_classifier_encoder
+1

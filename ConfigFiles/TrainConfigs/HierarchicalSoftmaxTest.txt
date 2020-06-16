@@ -5,7 +5,7 @@ HierarchicalSoftmax
 --model_name
 HierarchicalSoftmaxTest
 --batch_size
-1
+4
 --use_classifier_encoder
 1
 --classifier_checkpoint
@@ -33,9 +33,9 @@ HierarchicalSoftmaxTest
 --loss
 CrossEntropy
 --attention_dim
-256
+512
 --hidden_dim
-256
+512
 --dropout
 0.5
 --print_freq
@@ -45,7 +45,7 @@ True
 --fine_tune_encoder
 True
 --encoder_lr
-1e-3
+1e-4
 --decoder_lr
 1e-3
 --epochs
@@ -57,4 +57,4 @@ True
 --alpha_c
 1.
 --encoder_name
-resnet101
+densenet121

@@ -39,6 +39,13 @@ def main():
     metrics_dict = nlgeval.compute_metrics(references, hypotheses)
     print(metrics_dict)
 
+    with open("RandomRefs.txt", 'w+') as file:
+        for reference in references[0]:
+            file.write(reference.strip() + '\n')
+    with open("RandomPreds.txt", 'w+') as file:
+        for hypothesis in hypotheses:
+            file.write(hypothesis.strip() + '\n')
+
     with open("random_TestResults.txt", "w+") as file:
       for metric in metrics_dict:
         file.write(metric + ":" + str(metrics_dict[metric]) + "\n")

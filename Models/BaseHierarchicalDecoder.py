@@ -43,7 +43,13 @@ class BaseHierarchicalDecoder(nn.Module):
 
         self.label_attention = ClassAttention(nr_labels, hidden_dim, attention_dim) 
 
-        self.context_vector = nn.Linear(encoder_dim + nr_labels, hidden_dim)
+        self.context_vector_fc = nn.Linear(encoder_dim + nr_labels, hidden_dim)
+        
+
+        self.context_vector_W = nn.Linear(hidden_dim, hidden_dim)
+
+        self.context_vector_W_h_t = nn.Linear(hidden_dim, hidden_dim)
+
 
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)
@@ -51,22 +57,31 @@ class BaseHierarchicalDecoder(nn.Module):
         self.resize_encoder_features = nn.Linear(encoder_dim, hidden_dim)
         
         self.sentence_decoder = nn.LSTMCell(hidden_dim, hidden_dim, bias=True)  # decoding LSTMCell
-        self.word_decoder = nn.LSTMCell(embed_dim, hidden_dim, bias=True)
+        self.word_decoder = nn.LSTMCell(embed_dim + embed_dim, hidden_dim, bias=True)
 
         #self.init_h_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
         #self.init_c_sentence_dec = nn.Linear(encoder_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
         #self.init_h_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial hidden state of LSTMCell
         #self.init_c_word_dec = nn.Linear(hidden_dim, hidden_dim)  # linear layer to find initial cell state of LSTMCell
         
-        self.sentence_decoder_fc_sizes = [
-            self.embed_dim,  # topic
-            1                 # stop
-        ]
+        self.topic_vector = nn.Linear(hidden_dim, embed_dim)
 
-        self.sentence_decoder_fc = nn.Linear(self.hidden_dim, sum(self.sentence_decoder_fc_sizes))
+        self.stop_h_1 = nn.Linear(hidden_dim, hidden_dim)
+        self.stop_h = nn.Linear(hidden_dim, hidden_dim)
+
+        self.stop = nn.Linear(hidden_dim, 1)
+
+        #self.sentence_decoder_fc_sizes = [
+        #    self.embed_dim,  # topic
+        #    1                 # stop
+        #]
+
+        #self.sentence_decoder_fc = nn.Linear(self.hidden_dim, sum(self.sentence_decoder_fc_sizes))
 
         self.sigmoid = nn.Sigmoid()
         self.relu = nn.ReLU()
+        self.tanh = nn.Tanh()
+
         #self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs
         #self.init_weights()  # initialize some layers with the uniform distribution
 
@@ -77,6 +92,32 @@ class BaseHierarchicalDecoder(nn.Module):
         self.embedding.weight.data.uniform_(-0.1, 0.1)
         self.fc.bias.data.fill_(0)
         self.fc.weight.data.uniform_(-0.1, 0.1)
+        #self.sentence_decoder_fc.weight.data.uniform_(-0.1, 0.1)
+        #self.sentence_decoder_fc.bias.data.fill_(0)
+        self.context_vector_fc.weight.data.uniform_(-0.1, 0.1)
+        self.context_vector_fc.bias.data.fill_(0)
+        self.resize_encoder_features.weight.data.uniform_(-0.1, 0.1)
+        self.resize_encoder_features.bias.data.fill_(0)
+        self.context_vector_W.weight.data.uniform_(-0.1, 0.1)
+        self.context_vector_W.bias.data.fill_(0)
+        self.context_vector_W_h_t.weight.data.uniform_(-0.1, 0.1)
+        self.context_vector_W_h_t.bias.data.fill_(0)
+        self.topic_vector.weight.data.uniform_(-0.1, 0.1)
+        self.topic_vector.bias.data.fill_(0)
+        self.stop_h_1.weight.data.uniform_(-0.1, 0.1)
+        self.stop_h_1.bias.data.fill_(0)
+        self.stop_h.weight.data.uniform_(-0.1, 0.1)
+        self.stop_h.bias.data.fill_(0)
+        self.stop.weight.data.uniform_(-0.1, 0.1)
+        self.stop.bias.data.fill_(0)
+
+
+
+
+
+
+
+
 
     def load_pretrained_embeddings(self, embeddings):
         """
@@ -99,8 +140,8 @@ class BaseHierarchicalDecoder(nn.Module):
         :param encoder_out: encoded images, a tensor of dimension (batch_size, num_pixels, encoder_dim)
         :return: hidden state, cell state
         """
-        h_sent = torch.zeros(batch_size, self.hidden_dim).to(device)  # (batch_size, decoder_dim)
-        c_sent = torch.zeros(batch_size, self.hidden_dim).to(device)
+        h_sent = torch.zeros(batch_size, self.hidden_dim, requires_grad = True).to(device)  # (batch_size, decoder_dim)
+        c_sent = torch.zeros(batch_size, self.hidden_dim, requires_grad = True).to(device)
         return h_sent, c_sent
 
 
@@ -110,8 +151,8 @@ class BaseHierarchicalDecoder(nn.Module):
         :param encoder_out: encoded images, a tensor of dimension (batch_size, num_pixels, encoder_dim)
         :return: hidden state, cell state
         """
-        h_word = torch.zeros(batch_size, self.hidden_dim).to(device)  # (batch_size, decoder_dim)
-        c_word = torch.zeros(batch_size, self.hidden_dim).to(device)
+        h_word = torch.zeros(batch_size, self.hidden_dim, requires_grad = True).to(device)  # (batch_size, decoder_dim)
+        c_word = torch.zeros(batch_size, self.hidden_dim, requires_grad = True).to(device)
         return h_word, c_word
 
 
