@@ -114,10 +114,12 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
 
              attention_weighted_visual_encoding, visual_alpha = decoder.visual_attention(encoder_out, h_sent)
 
-             attention_weighted_label_encoding, label_alpha = decoder.label_attention(label_probs, h_sent)
+             #attention_weighted_label_encoding, label_alpha = decoder.label_attention(label_probs, h_sent)
 
-             context_vector = decoder.context_vector_fc(torch.cat([attention_weighted_visual_encoding, attention_weighted_label_encoding]
-                              ,dim= 1))
+             #context_vector = decoder.context_vector_fc(torch.cat([attention_weighted_visual_encoding, attention_weighted_label_encoding]
+             #                 ,dim= 1))
+
+             context_vector = decoder.context_vector_fc(attention_weighted_visual_encoding)
 
              #print(context_vector)
              #print(h_sent)

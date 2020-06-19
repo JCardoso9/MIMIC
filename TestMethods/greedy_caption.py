@@ -37,8 +37,11 @@ def main():
 
     print(argParser)
 
+    if (argParser.checkpoint is not None):
+        modelInfo = torch.load(argParser.checkpoint)
+
     # Load model
-    encoder, decoder, criterion, embeddings, _, _, _, _, idx2word, word2idx =  setupModel(argParser)
+    encoder, decoder = setupEncoderDecoder(argParser, modelInfo)
 
     # Create data loaders
     testLoader, _ = setupDataLoaders(argParser)
@@ -86,7 +89,7 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
     smoothL1Calculator = nn.SmoothL1Loss(reduction='none')
 
     # For each image
-    for i, (image, caps, caplens) in enumerate(
+    for i, (image, caps, caplens, studies) in enumerate(
             tqdm(testLoader, desc="Evaluating with greedy decoding: ")):
 
         t = 0

@@ -43,8 +43,8 @@ class BaseHierarchicalDecoder(nn.Module):
 
         self.label_attention = ClassAttention(nr_labels, hidden_dim, attention_dim) 
 
-        self.context_vector_fc = nn.Linear(encoder_dim + nr_labels, hidden_dim)
-        
+        #self.context_vector_fc = nn.Linear(encoder_dim + nr_labels, hidden_dim)
+        self.context_vector_fc = nn.Linear(encoder_dim, hidden_dim)
 
         self.context_vector_W = nn.Linear(hidden_dim, hidden_dim)
 

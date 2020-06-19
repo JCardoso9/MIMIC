@@ -8,7 +8,7 @@ from argParser import *
 from TrainingEnvironment import *
 from generalUtilities import *
 from train import *
-from refactored_beam_caption import *
+from beam_caption import *
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -91,8 +91,8 @@ def main():
         #references, hypotheses = evaluate(argParser, 4, encoder, decoder, valLoader, word2idx, idx2word)
         references, hypotheses = evaluate_beam(argParser, BEAM_SIZE, encoder, decoder, valLoader, word2idx, idx2word)
 
-        enc_scheduler.step()
-        dec_scheduler.step()
+        encoder_scheduler.step()
+        decoder_scheduler.step()
 
         # nlgeval = NLGEval()
         metrics_dict = nlgeval.compute_metrics(references, hypotheses)

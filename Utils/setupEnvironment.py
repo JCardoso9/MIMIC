@@ -14,7 +14,7 @@ from SoftmaxDecoder import *
 from ContinuousDecoder import *
 from ImgContinuousDecoder import *
 from XRayDataset import *
-from HierarchicalXRayDataset import *
+#from HierarchicalXRayDataset import *
 from TrainingEnvironment import *
 from losses import *
 
@@ -221,16 +221,16 @@ def setupDataLoaders(args):
     return testLoader, None
 
   elif (args.runType == "Training"):
-    if "Hierarchical" in args.model:
-        trainLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedTrainCaptionsPath,
-           args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
-        valLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedValCaptionsPath,
-           args.encodedValCaptionsLengthsPath, args.valImgsPath, transform, training=False), batch_size=1, shuffle=True)
+#    if "Hierarchical" in args.model:
+#        trainLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedTrainCaptionsPath,
+#           args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
+#        valLoader = DataLoader(HierarchicalXRayDataset(args.word2idxPath,  args.encodedValCaptionsPath,
+#           args.encodedValCaptionsLengthsPath, args.valImgsPath, transform, training=False), batch_size=1, shuffle=True)
 
-    else:
-        trainLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTrainCaptionsPath,
-          args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
-        valLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedValCaptionsPath,
+ #   else:
+    trainLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedTrainCaptionsPath,
+         args.encodedTrainCaptionsLengthsPath, args.trainImgsPath, transform), batch_size=args.batch_size, shuffle=True)
+    valLoader = DataLoader(XRayDataset(args.word2idxPath, args.encodedValCaptionsPath,
           args.encodedValCaptionsLengthsPath, args.valImgsPath, transform), batch_size=1, shuffle=True)
 
     return trainLoader, valLoader

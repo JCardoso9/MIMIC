@@ -103,9 +103,9 @@ class ContinuousDecoder(BaseDecoderWAttention):
             if self.use_tf_as_input == 0 or self.use_scheduled_sampling and random.random() < self.scheduled_sampling_prob:
                 preds =  torch.nn.functional.normalize(preds, p=2, dim=1)
                 #print(preds)
-                similarity_matrix = torch.mm(preds, self.embedding.weight.T)
+                similarity_values = torch.mm(preds, self.embedding.weight.T)
 
-                word_index = torch.argmax(similarity_matrix, dim=1)
+                word_index = torch.argmax(similarity_values, dim=1)
                 #print(word_index.shape)
                 input = self.embedding(word_index)
 

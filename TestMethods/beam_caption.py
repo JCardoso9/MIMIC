@@ -21,13 +21,18 @@ DISABLE_TEACHER_FORCING = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
+obj_study= '55609649'
+
 def main():
     argParser = get_args()
 
     print(argParser)
 
+    if (argParser.checkpoint is not None):
+        modelInfo = torch.load(argParser.checkpoint)
+
     # Load model
-    encoder, decoder, criterion, embeddings, _, _, _, _, idx2word, word2idx =  setupModel(argParser)
+    encoder, decoder = setupEncoderDecoder(argParser, modelInfo)
 
     # Create data loaders
     testLoader, _ = setupDataLoaders(argParser)
@@ -38,7 +43,7 @@ def main():
     # Create NlG metrics evaluator
     nlgeval = NLGEval(metrics_to_omit=['SkipThoughtCS', 'GreedyMatchingScore', 'VectorExtremaCosineSimilarity', 'EmbeddingAverageCosineSimilarity'])
 
-    vocab_size = embeddings.shape[0]
+    vocab_size = decoder.vocab_size
 
     references, hypotheses = evaluate_beam(argParser, BEAM_SIZE, encoder, decoder, testLoader, word2idx, idx2word)
 
@@ -74,10 +79,12 @@ def evaluate_beam(argParser, beam_size, encoder, decoder, testLoader, word2idx, 
 
 
     # For each image
-    for i, (image, caps, caplens) in enumerate(
+    for i, (image, caps, caplens, studies) in enumerate(
             tqdm(testLoader, desc="EVALUATING AT BEAM SIZE " + str(beam_size))):
 
         k = beam_size
+
+        #print(studies)
 
         # Move to GPU device, if available
         image = image.to(device)  # (1, 3, 256, 256)
@@ -202,10 +209,16 @@ def evaluate_beam(argParser, beam_size, encoder, decoder, testLoader, word2idx, 
         seq = [w for w in seq if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
         hypotheses.append(decodeCaption(seq, idx2word))
 
-        #print("REFS: ", references)
-        #print("HIPS: ", hypotheses)
+#        print("Current",studies[0])
+#        print("obj",obj_study)
+#        if (studies[0] == obj_study):
+#            print("Refs:", decodeCaption(ref, idx2word))
+#            print("HIPS: ", decodeCaption(seq, idx2word))
+#            break
+#        print("REFS: ", references)
+#        print("HIPS: ", hypotheses)
         assert len(references[0]) == len(hypotheses)
-        #break
+#        break
 
     return references, hypotheses
 
