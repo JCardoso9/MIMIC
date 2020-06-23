@@ -67,6 +67,11 @@ class SmoothL1LossWordAndSentence(nn.Module):
       batch_size = targets.shape[0]
       for sentence_idx in range(batch_size):
           #word_loss += self.criterion(preds[sentence_idx, :decode_lengths[sentence_idx],:], targets[sentence_idx, :decode_lengths[sentence_idx],:])
+          
+          #preds_sum = torch.sum(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim=0)
+          #print("preds_sum shape", preds_sum.shape)
+          
+          #print(torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim= 0).shape)
 
           sentence_loss += self.criterion(torch.mean(preds[sentence_idx, :decode_lengths[sentence_idx],:], dim= 0),
                                           torch.mean(targets[sentence_idx, :decode_lengths[sentence_idx],:], dim=0))
@@ -75,8 +80,8 @@ class SmoothL1LossWordAndSentence(nn.Module):
       preds = pack_padded_sequence(preds, decode_lengths, batch_first=True)
       targets = pack_padded_sequence(targets, decode_lengths, batch_first=True)
       loss = self.criterion(preds.data, targets.data)
-      #print("LOSS:", loss)
-      #print("Word loss:", word_loss/batch_size)
+      print("LOSS:", loss)
+      print("sentence loss:", sentence_loss)
 
 
       #return  word_loss /batch_size +  (sentence_loss / batch_size)

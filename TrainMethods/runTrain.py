@@ -51,6 +51,13 @@ def main():
 
     encoder, decoder = setupEncoderDecoder(argParser, modelInfo, classifierInfo)
 
+    print("Use SS",decoder.use_scheduled_sampling)
+    print("Use mogrifier",decoder.use_mogrifier)
+    print("Use tf", decoder.use_tf_as_input)
+    print("Initital SS prob:", decoder.scheduled_sampling_prob)
+    print("dropout prob", decoder.dropout)
+
+
     encoder_optimizer, decoder_optimizer = setupOptimizers(encoder, decoder, argParser, modelInfo)
 
     decoder_scheduler, encoder_scheduler = setupSchedulers(encoder_optimizer, decoder_optimizer, argParser)

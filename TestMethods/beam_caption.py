@@ -28,6 +28,7 @@ def main():
 
     print(argParser)
 
+    print(argParser.checkpoint)
     if (argParser.checkpoint is not None):
         modelInfo = torch.load(argParser.checkpoint)
 

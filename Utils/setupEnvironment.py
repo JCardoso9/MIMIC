@@ -75,7 +75,8 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
                                     scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
-                                    use_custom_tf=args.use_custom_tf)
+                                    use_custom_tf=args.use_custom_tf,
+                                    use_mogrifier=args.use_mogrifier)
 
 
     else:
@@ -89,7 +90,8 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
                                     scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
-                                    use_custom_tf=args.use_custom_tf)
+                                    use_custom_tf=args.use_custom_tf, 
+                                    use_mogrifier=args.use_mogrifier)
 
 
   elif (args.model == 'Softmax'):
@@ -103,7 +105,8 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
                                     dropout=args.dropout,
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
-                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob)
+                                    scheduled_sampling_prob=args.initial_scheduled_sampling_prob, 
+                                    use_mogrifier=args.use_mogrifier)
 
   elif (args.model == "HierarchicalSoftmax"):
       print("Created hierarchical decoder")

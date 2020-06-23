@@ -38,6 +38,7 @@ class ClassifyingEncoder(nn.Module):
         class_preds_logits = self.classifier(out)
 
         img_features = img_features.permute(0, 2, 3, 1)
+        #print("Out of encoder", img_features.shape)
         return img_features, class_preds_logits
 
 

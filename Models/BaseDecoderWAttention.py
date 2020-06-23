@@ -4,6 +4,8 @@ from torch import nn
 import torchvision
 from Attention import Attention
 from abc import ABC, abstractmethod
+from MogrifierLSTM import *
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -14,7 +16,7 @@ class BaseDecoderWAttention(nn.Module):
     """
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -37,13 +39,19 @@ class BaseDecoderWAttention(nn.Module):
         self.use_tf_as_input = use_tf_as_input
         self.use_scheduled_sampling = use_scheduled_sampling
         self.scheduled_sampling_prob = scheduled_sampling_prob
-
+        print(scheduled_sampling_prob)
+        self.use_mogrifier = use_mogrifier
 
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
 
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)
-        self.decode_step = nn.LSTMCell(embed_dim + encoder_dim, decoder_dim, bias=True)  # decoding LSTMCell
+        if (use_mogrifier):
+            print("created mogrifier")
+            self.decode_step =  MogrifierLSTMCell(embed_dim+encoder_dim, decoder_dim, 3)
+        else:
+            self.decode_step = nn.LSTMCell(embed_dim + encoder_dim, decoder_dim, bias=True)  # decoding LSTMCell
+        
         #encoder_dim = 1024
         #print(encoder_dim)
         self.init_h = nn.Linear(encoder_dim, decoder_dim)  # linear layer to find initial hidden state of LSTMCell

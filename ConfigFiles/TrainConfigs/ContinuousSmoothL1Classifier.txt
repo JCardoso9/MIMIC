@@ -5,7 +5,7 @@ Continuous
 --model_name
 ContinuousSmoothL1Classifier
 --batch_size
-64
+4
 --word2idxPath
 /home/jcardoso/MIMIC/word2idxF.json
 --idx2wordPath
@@ -54,7 +54,7 @@ True
 1
 --use_scheduled_sampling
 True
---scheduled_sampling_prob
+--initial_scheduled_sampling_prob
 0.
 --scheduled_sampling_decay_epochs
 3

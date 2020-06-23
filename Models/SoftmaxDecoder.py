@@ -15,7 +15,7 @@ class SoftmaxDecoder(BaseDecoderWAttention):
     """
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.):
+                 dropout, use_tf_as_input, use_scheduled_sampling, scheduled_sampling_prob, use_mogrifier):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -25,7 +25,7 @@ class SoftmaxDecoder(BaseDecoderWAttention):
         :param dropout: dropout
         """
         super(SoftmaxDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier)
 
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
         self.init_weights()  # initialize some layers with the uniform distribution

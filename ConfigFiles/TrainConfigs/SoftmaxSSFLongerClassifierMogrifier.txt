@@ -3,7 +3,7 @@ Training
 --model
 Softmax
 --model_name
-SoftmaxSSFLongerDensenet
+SoftmaxSSFLongerClassifierMogrifier
 --batch_size
 64
 --word2idxPath
@@ -39,11 +39,11 @@ True
 --fine_tune_encoder
 True
 --encoder_lr
-1e-3
+1e-4
 --decoder_lr
 1e-3
 --epochs
-30
+40
 --lr_threshold
 1e-5
 --grad_clip
@@ -60,5 +60,9 @@ True
 0.05
 --early_stop_epoch_threshold
 13
---encoder_name
-densenet121
+--use_classifier_encoder
+1
+--classifier_checkpoint
+/home/jcardoso/MIMIC/Experiments/Classifier/BEST.pth.tar
+--use_mogrifier
+1

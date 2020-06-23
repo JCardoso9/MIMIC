@@ -52,8 +52,8 @@ True
 1.
 --use_scheduled_sampling
 True
---scheduled_sampling_prob
-0.
+--initial_scheduled_sampling_prob
+0.0
 --scheduled_sampling_decay_epochs
 3
 --rate_change_scheduled_sampling_prob

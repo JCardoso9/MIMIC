@@ -15,8 +15,8 @@ class ContinuousDecoder(BaseDecoderWAttention):
     """
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.,
-                 use_custom_tf=False, use_img_embedding=200):
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob,
+                 use_custom_tf, use_mogrifier):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -26,9 +26,8 @@ class ContinuousDecoder(BaseDecoderWAttention):
         :param dropout: dropout
         """
         super(ContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout=0.5, use_tf_as_input = 1, use_scheduled_sampling=False , scheduled_sampling_prob = 0.)
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier)
 
-        self.use_img_embedding = use_img_embedding
         self.use_custom_tf = use_custom_tf
         self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs
         self.init_weights()  # initialize some layers with the uniform distribution

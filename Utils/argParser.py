@@ -139,7 +139,7 @@ def get_args():
     parser.add_argument('--use_scheduled_sampling', type=bool, default=False,
                         help='Use scheduled sampling during training?')
 
-    parser.add_argument('--initial_scheduled_sampling_prob', type=float, default=.1,
+    parser.add_argument('--initial_scheduled_sampling_prob', type=float, default=.0,
                         help='initial probability to sample from previous decoder output')
 
     parser.add_argument('--scheduled_sampling_decay_epochs', type=int, default=5,
@@ -154,6 +154,8 @@ def get_args():
                         help='use custom tf method in continuous model?')
 
 
+    parser.add_argument('--use_mogrifier', type=bool, default=False,
+                        help='use mogrifier lstm?')
 
 #    opts, _ = parser.parse_known_args()
 
