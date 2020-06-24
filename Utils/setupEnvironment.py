@@ -18,6 +18,7 @@ from XRayDataset import *
 from TrainingEnvironment import *
 from losses import *
 
+
 from datetime import datetime
 
 import torch
@@ -46,7 +47,7 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
   idx2word, word2idx = loadWordIndexDicts(args)
 
   if (args.use_classifier_encoder):
-      encoder = ClassifyingEncoder()
+      encoder = ClassifyingEncoder(args.encoder_name)
       print("Created Classifier encoder")
       if (model_checkpoint is  None):
           print("LOading pre-trained Classifier")

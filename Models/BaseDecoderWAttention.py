@@ -39,7 +39,7 @@ class BaseDecoderWAttention(nn.Module):
         self.use_tf_as_input = use_tf_as_input
         self.use_scheduled_sampling = use_scheduled_sampling
         self.scheduled_sampling_prob = scheduled_sampling_prob
-        print(scheduled_sampling_prob)
+        print("Decoder Initial SS prob",scheduled_sampling_prob)
         self.use_mogrifier = use_mogrifier
 
         self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
@@ -102,7 +102,9 @@ class BaseDecoderWAttention(nn.Module):
         self.use_scheduled_sampling = value
 
     def set_scheduled_sampling_prob(self, value):
+        print("new Ss", value)
         self.schedule_sampling_prob = value
+        print("decoder prob:", self.schedule_sampling_prob)
 
     def should_use_prev_output():
         return random.random() < self.scheduled_sampling_prob

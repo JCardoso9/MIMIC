@@ -1,7 +1,13 @@
+import sys
+sys.path.append('../../')
+
 import torch
 from torch import nn
 import torchvision
 import torch.nn.functional as F
+from efficientnet_pytorch import EfficientNet
+
+
 
 class ClassifyingEncoder(nn.Module):
     """
@@ -12,15 +18,22 @@ class ClassifyingEncoder(nn.Module):
         super(ClassifyingEncoder, self).__init__()
         self.enc_image_size = encoded_image_size
         self.network_name= network_name
+        self.nr_classes = 28
 
-        if network_name == 'densenet121':
+
+        if self.network_name == 'densenet121':
             self.dim = 1024
-            self.nr_classes = 28
 
             self.net = torchvision.models.densenet121(pretrained=True)
             self.batch_norm = list(list(self.net.children())[0])[-1]
             self.net = nn.Sequential(*list(list(self.net.children())[0])[:-1])
             self.classifier = nn.Linear(self.dim, self.nr_classes)
+
+        elif self.network_name == "efficient_net":
+            print("Classifier is efficient net")
+            self.dim = 1280
+            self.net = EfficientNet.from_pretrained('efficientnet-b3', num_classes=28)
+
 
         self.fine_tune()
 
@@ -30,6 +43,15 @@ class ClassifyingEncoder(nn.Module):
         :param images: images, a tensor of dimensions (batch_size, 3, image_size, image_size)
         :return: encoded images
         """
+        if self.network_name == "efficient_net":
+            class_preds_logits = self.net(img)
+            #with torch.no_grad():
+                #img_features = self.net.extract_features(img)
+            print("features shape", img_features.shape)
+
+            return None, class_preds_logits
+
+
         img_features = self.net(images)
         norm_batch = self.batch_norm(img_features)
         out = F.relu(norm_batch, inplace=True)

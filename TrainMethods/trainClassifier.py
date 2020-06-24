@@ -3,6 +3,7 @@ import sys
 sys.path.append('../Dataset/')
 sys.path.append('../Utils/')
 sys.path.append('../Models/')
+sys.path.append('../../')
 
 from setupEnvironment import *
 from argParser import *
@@ -11,7 +12,6 @@ from generalUtilities import *
 
 from ClassifyingEncoder import *
 from ClassXRayDataset import *
-
 import torch
 import torch.backends.cudnn as cudnn
 
@@ -34,6 +34,7 @@ def main():
     trainingEnvironment = TrainingEnvironment(argParser)
 
     encoder = ClassifyingEncoder()
+    
     encoder.to(device)
 
     encoder.fine_tune(argParser.fine_tune_encoder)
@@ -125,6 +126,7 @@ def runEpochs(epoch, mode, encoder, criterion, encoder_optimizer, argParser):
 
         # Move to GPU, if available
         imgs = imgs.to(device)
+    
         features, pred_labels_logits = encoder(imgs)
 
         loss = criterion(pred_labels_logits, reshape_target_labels(target_labels).to(device))

@@ -77,8 +77,10 @@ def main():
 
         if epoch > 1 and argParser.use_scheduled_sampling and epoch % argParser.scheduled_sampling_decay_epochs == 0:
             scheduled_sampling_prob += argParser.rate_change_scheduled_sampling_prob
-            decoder.set_scheduled_sampling_prob(scheduled_sampling_prob)
-
+            #decoder.set_scheduled_sampling_prob(scheduled_sampling_prob)
+            decoder.scheduled_sampling_prob = scheduled_sampling_prob
+            print("increased scheduled sampling prob to: ", decoder.scheduled_sampling_prob)
+            print("Saved SS",scheduled_sampling_prob)
 
         # Decay learning rate if there is no improvement for "decay_LR_epoch_threshold" consecutive epochs,
         #  and terminate training after minimum LR has been achieved and  "early_stop_epoch_threshold" epochs without improvement
@@ -97,6 +99,7 @@ def main():
         # One epoch's validation
         #references, hypotheses = evaluate(argParser, 4, encoder, decoder, valLoader, word2idx, idx2word)
         references, hypotheses = evaluate_beam(argParser, BEAM_SIZE, encoder, decoder, valLoader, word2idx, idx2word)
+
 
         encoder_scheduler.step()
         decoder_scheduler.step()
