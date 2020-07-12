@@ -62,6 +62,8 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
           print("Created refactored encoder")
           encoder = RefactoredEncoder(args.encoder_name)
 
+
+  print(embed_dim)
   #print(encoder.dim)
   # Create adequate model
   if (args.model == 'Continuous'):
@@ -77,7 +79,8 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
                                     use_scheduled_sampling=args.use_scheduled_sampling,
                                     scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
                                     use_custom_tf=args.use_custom_tf,
-                                    use_mogrifier=args.use_mogrifier)
+                                    use_mogrifier=args.use_mogrifier,
+                                    attention_type=args.attention_type)
 
 
     else:
@@ -92,7 +95,8 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
                                     use_scheduled_sampling=args.use_scheduled_sampling,
                                     scheduled_sampling_prob=args.initial_scheduled_sampling_prob,
                                     use_custom_tf=args.use_custom_tf, 
-                                    use_mogrifier=args.use_mogrifier)
+                                    use_mogrifier=args.use_mogrifier,
+                                    attention_type=args.attention_type)
 
 
   elif (args.model == 'Softmax'):
@@ -107,7 +111,8 @@ def setupEncoderDecoder(args, model_checkpoint=None, classifying_encoder_checkpo
                                     use_tf_as_input = args.use_tf_as_input,
                                     use_scheduled_sampling=args.use_scheduled_sampling,
                                     scheduled_sampling_prob=args.initial_scheduled_sampling_prob, 
-                                    use_mogrifier=args.use_mogrifier)
+                                    use_mogrifier=args.use_mogrifier,
+                                    attention_type=args.attention_type)
 
   elif (args.model == "HierarchicalSoftmax"):
       print("Created hierarchical decoder")

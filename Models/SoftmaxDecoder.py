@@ -15,7 +15,8 @@ class SoftmaxDecoder(BaseDecoderWAttention):
     """
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout, use_tf_as_input, use_scheduled_sampling, scheduled_sampling_prob, use_mogrifier):
+                 dropout, use_tf_as_input, use_scheduled_sampling, scheduled_sampling_prob, use_mogrifier,
+                 attention_type):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -25,7 +26,7 @@ class SoftmaxDecoder(BaseDecoderWAttention):
         :param dropout: dropout
         """
         super(SoftmaxDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier)
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier, attention_type)
 
         self.fc = nn.Linear(decoder_dim, vocab_size)  # linear layer to find scores over vocabulary
         self.init_weights()  # initialize some layers with the uniform distribution
@@ -69,7 +70,7 @@ class SoftmaxDecoder(BaseDecoderWAttention):
         predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
         alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
 
-        input = self.sos_embedding.expand(batch_size, 200).to(device)
+        input = self.sos_embedding.expand(batch_size, self.embed_dim).to(device)
 
         # At each time-step, decode by
         # attention-weighing the encoder's output based on the decoder's previous hidden state output

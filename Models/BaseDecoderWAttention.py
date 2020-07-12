@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import torchvision
 from Attention import Attention
+from DotProdAttention import *
 from abc import ABC, abstractmethod
 from MogrifierLSTM import *
 
@@ -16,7 +17,8 @@ class BaseDecoderWAttention(nn.Module):
     """
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier):
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier,
+                 attention_type):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -41,8 +43,13 @@ class BaseDecoderWAttention(nn.Module):
         self.scheduled_sampling_prob = scheduled_sampling_prob
         print("Decoder Initial SS prob",scheduled_sampling_prob)
         self.use_mogrifier = use_mogrifier
-
-        self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
+        self.attention_type = attention_type
+        print("Attention",self.attention_type)
+        if self.attention_type == "Additive":
+            self.attention = Attention(encoder_dim, decoder_dim, attention_dim)  # attention network
+        elif self.attention_type == "DotProduct":
+            print("Dot product attention")
+            self.attention = DotProdAttention(encoder_dim, decoder_dim, attention_dim)
 
         self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
         self.dropout = nn.Dropout(p=self.dropout)

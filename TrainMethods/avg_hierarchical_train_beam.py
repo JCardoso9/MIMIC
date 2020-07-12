@@ -28,13 +28,13 @@ DISABLE_TEACHER_FORCING = 0
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
-with open("/home/jcardoso/MIMIC/trainReportLengthInSentences.json") as json_file:
+with open("/home/jcardoso/MIMIC/valReportLengthInSentences.json") as json_file:
     trainReportLengthInSentences = json.load(json_file)
 
-with open("/home/jcardoso/MIMIC/trainSentencesLengths.json") as json_file:
+with open("/home/jcardoso/MIMIC/valSentencesLengths.json") as json_file:
     trainSentencesLengths = json.load(json_file)
 
-with open("/home/jcardoso/MIMIC/trainSentences.json") as json_file:
+with open("/home/jcardoso/MIMIC/valSentences.json") as json_file:
     trainSentences = json.load(json_file)
 
 
@@ -448,6 +448,7 @@ def train(argParser, encoder, decoder, trainLoader, word2idx, idx2word, criterio
         decoder_optimizer.zero_grad()
         if encoder_optimizer is not None:
             encoder_optimizer.zero_grad()
+        loss = loss / max(report_lengths)
 
         loss.backward()
 

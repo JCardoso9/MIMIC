@@ -110,6 +110,11 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
         h_sent, c_sent = decoder.init_sent_hidden_state(batch_size)
 
         words = 0
+
+        #word_lstm_input = decoder.sos_embedding.expand(batch_size, decoder.embed_dim).to(device)
+
+        topic_vector = 0
+
         while t_s < MAX_REPORT_LENGTH:
 
              attention_weighted_visual_encoding, visual_alpha = decoder.visual_attention(encoder_out, h_sent)
@@ -148,9 +153,15 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
              h_word, c_word = decoder.init_word_hidden_state(batch_size)
              #h_word, c_word = decoder.word_decoder(topic_vector, (h_word, c_word))
              #word_lstm_input = topic_vector
-             word_lstm_input = decoder.sos_embedding.expand(batch_size, decoder.embed_dim).to(device)
+             #word_lstm_input = decoder.sos_embedding.expand(batch_size, decoder.embed_dim).to(device)
+             word_lstm_input = topic_vector
+
              t_w = 0
+
+             print("New sentence")
              while t_w < MAX_SENTENCE_LENGTH: 
+
+                 print(word_lstm_input)
 
                  #print(h_word)
                  #print(word_lstm_input)
@@ -186,7 +197,7 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
                  word_lstm_input = decoder.embedding(pred_word_indexes)
                  #else:
                  #word_lstm_input = decoder.embedding(caps[:,words]).to(device)
-                 #words += 1
+                 words += 1
                  #print(caps[:,words])
 
              t_s +=1
@@ -196,18 +207,17 @@ def evaluate_greedy(argParser, encoder, decoder, testLoader, word2idx, idx2word)
 
         #print(sentence)
         hypotheses.append(decodeCaption(sentence, idx2word))
-        #print("HIPS" ,hypotheses)
 
         for reference in caps:
             #print("Caps", caps)
             encoded_reference = [w for w in reference.tolist() if w not in {word2idx['<sos>'], word2idx['<eoc>'], word2idx['<pad>']}]
             references[0].append(decodeCaption(encoded_reference, idx2word))
-        #print("REFS:", references[0])
-
+        print("REFS:", references[0])
+        print("HIPS" ,hypotheses)
         assert len(references[0]) == len(hypotheses)
 
 
-        #break
+        break
 
 
 

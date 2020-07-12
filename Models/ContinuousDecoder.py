@@ -16,7 +16,7 @@ class ContinuousDecoder(BaseDecoderWAttention):
 
     def __init__(self, attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
                  dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob,
-                 use_custom_tf, use_mogrifier):
+                 use_custom_tf, use_mogrifier, attention_type):
         """
         :param attention_dim: size of attention network
         :param embed_dim: embedding size
@@ -26,7 +26,7 @@ class ContinuousDecoder(BaseDecoderWAttention):
         :param dropout: dropout
         """
         super(ContinuousDecoder, self).__init__(attention_dim, embed_dim, decoder_dim, vocab_size, sos_embedding, encoder_dim, 
-                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier)
+                 dropout, use_tf_as_input, use_scheduled_sampling , scheduled_sampling_prob, use_mogrifier, attention_type)
 
         self.use_custom_tf = use_custom_tf
         self.fc = nn.Linear(decoder_dim, embed_dim)  # linear layer to generate continuous outputs

@@ -85,6 +85,9 @@ def get_args():
     parser.add_argument('--attention_dim', type=int,
                         default=512, help='define attention dim')
 
+    parser.add_argument('--attention_type', type=str, default='Additive',
+                        help='attention type')
+
     parser.add_argument('--decoder_dim', type=int,
                         default=512, help='define decoder dim')
 
